@@ -1,0 +1,66 @@
+/* Telegram injects --tg-theme-* vars; the --fb-* values are fallbacks for a plain browser. */
+:root {
+  --fb-bg: #ffffff; --fb-card: #f1f1f4; --fb-text: #000000; --fb-hint: #8e8e93;
+  --fb-link: #2481cc; --fb-btn: #2481cc; --fb-btn-text: #ffffff;
+}
+[data-theme="dark"] {
+  --fb-bg: #17212b; --fb-card: #232e3c; --fb-text: #f5f5f5; --fb-hint: #708499;
+  --fb-link: #6ab3f3; --fb-btn: #5288c1; --fb-btn-text: #ffffff;
+}
+:root {
+  --bg: var(--tg-theme-bg-color, var(--fb-bg));
+  --card: var(--tg-theme-secondary-bg-color, var(--fb-card));
+  --text: var(--tg-theme-text-color, var(--fb-text));
+  --hint: var(--tg-theme-hint-color, var(--fb-hint));
+  --link: var(--tg-theme-link-color, var(--fb-link));
+  --btn: var(--tg-theme-button-color, var(--fb-btn));
+  --btn-text: var(--tg-theme-button-text-color, var(--fb-btn-text));
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  position: sticky; top: 0; z-index: 1;
+  padding: 12px 16px 4px;
+  background: var(--bg);
+}
+#search {
+  width: 100%; padding: 10px 12px;
+  border: 0; border-radius: 10px;
+  background: var(--card); color: var(--text); font: inherit;
+}
+#search::placeholder { color: var(--hint); }
+
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.chip {
+  padding: 7px 12px;
+  border: 1px solid var(--hint); border-radius: 999px;
+  background: transparent; color: var(--text); font: inherit; cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--btn); border-color: var(--btn); color: var(--btn-text); }
+.chip:focus-visible, #search:focus-visible, .card:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+
+.hint { margin: 8px 0 0; color: var(--hint); font-size: 13px; }
+
+.grid {
+  display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  padding: 8px 16px 24px;
+}
+.card {
+  display: block; padding: 10px;
+  border-radius: 14px; background: var(--card);
+  color: inherit; text-decoration: none;
+}
+.card img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: var(--bg); }
+.name { margin-top: 6px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row { display: flex; justify-content: space-between; font-size: 13px; }
+.id { color: var(--hint); }
+.price { color: var(--link); font-weight: 600; }
+.empty { grid-column: 1 / -1; text-align: center; color: var(--hint); }

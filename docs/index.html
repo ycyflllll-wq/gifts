@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Gift Finder</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <input id="search" type="search" placeholder="Пошук за назвою або #ID" aria-label="Пошук за назвою або ID">
+    <div class="filters">
+      <button class="chip" data-filter="mono" aria-pressed="false">⚫ Монохромні</button>
+      <button class="chip" data-filter="fewDigits" aria-pressed="false">🔢 ≤ 3 різних цифри</button>
+    </div>
+    <p id="count" class="hint" aria-live="polite"></p>
+  </header>
+  <main id="grid" class="grid"></main>
+
+  <script src="filters.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

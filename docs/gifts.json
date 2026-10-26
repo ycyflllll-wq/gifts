@@ -1,0 +1,17 @@
+[
+  { "id": 7777, "name": "Plush Pepe", "price": 9500, "is_monochrome": true, "image": "https://nft.fragment.com/gift/plushpepe-7777.webp", "url": "https://t.me/nft/PlushPepe-7777" },
+  { "id": 1231, "name": "Durov's Cap", "price": 820, "is_monochrome": false, "image": "https://nft.fragment.com/gift/durovscap-1231.webp", "url": "https://t.me/nft/DurovsCap-1231" },
+  { "id": 5005, "name": "Signet Ring", "price": 140, "is_monochrome": true, "image": "https://nft.fragment.com/gift/signetring-5005.webp", "url": "https://t.me/nft/SignetRing-5005" },
+  { "id": 1234, "name": "Loot Bag", "price": 95, "is_monochrome": true, "image": "https://nft.fragment.com/gift/lootbag-1234.webp", "url": "https://t.me/nft/LootBag-1234" },
+  { "id": 88, "name": "Homemade Cake", "price": 12, "is_monochrome": false, "image": "https://nft.fragment.com/gift/homemadecake-88.webp", "url": "https://t.me/nft/HomemadeCake-88" },
+  { "id": 123456, "name": "Swiss Watch", "price": 48, "is_monochrome": true, "image": "https://nft.fragment.com/gift/swisswatch-123456.webp", "url": "https://t.me/nft/SwissWatch-123456" },
+  { "id": 1001, "name": "Precious Peach", "price": 410, "is_monochrome": false, "image": "https://nft.fragment.com/gift/preciouspeach-1001.webp", "url": "https://t.me/nft/PreciousPeach-1001" },
+  { "id": 9876, "name": "Eternal Rose", "price": 30, "is_monochrome": false, "image": "https://nft.fragment.com/gift/eternalrose-9876.webp", "url": "https://t.me/nft/EternalRose-9876" },
+  { "id": 3133, "name": "Lol Pop", "price": 4.5, "is_monochrome": true, "image": "https://nft.fragment.com/gift/lolpop-3133.webp", "url": "https://t.me/nft/LolPop-3133" },
+  { "id": 4545, "name": "Jelly Bunny", "price": 7, "is_monochrome": false, "image": "https://nft.fragment.com/gift/jellybunny-4545.webp", "url": "https://t.me/nft/JellyBunny-4545" },
+  { "id": 2024, "name": "Spy Agaric", "price": 6, "is_monochrome": true, "image": "https://nft.fragment.com/gift/spyagaric-2024.webp", "url": "https://t.me/nft/SpyAgaric-2024" },
+  { "id": 56789, "name": "Diamond Ring", "price": 25, "is_monochrome": false, "image": "https://nft.fragment.com/gift/diamondring-56789.webp", "url": "https://t.me/nft/DiamondRing-56789" },
+  { "id": 111, "name": "Toy Bear", "price": 33, "is_monochrome": false, "image": "https://nft.fragment.com/gift/toybear-111.webp", "url": "https://t.me/nft/ToyBear-111" },
+  { "id": 7070, "name": "Desk Calendar", "price": 3.2, "is_monochrome": true, "image": "https://nft.fragment.com/gift/deskcalendar-7070.webp", "url": "https://t.me/nft/DeskCalendar-7070" },
+  { "id": 1357, "name": "Snake Box", "price": 5, "is_monochrome": false, "image": "https://nft.fragment.com/gift/snakebox-1357.webp", "url": "https://t.me/nft/SnakeBox-1357" }
+]
