@@ -30,7 +30,7 @@ npm start
 - `POST /api/gifts` — додати подарунок. Потрібна змінна середовища `ADMIN_TOKEN` і заголовок `X-Admin-Token`:
 
 ```bash
-curl -X POST http://localhost:3000/api/gifts -H "Content-Type: application/json" -H "X-Admin-Token: secret" -d "{\"id\":4444,\"name\":\"Lol Pop\",\"price\":5,\"is_monochrome\":true,\"image\":\"https://nft.fragment.com/gift/lolpop-4444.webp\",\"url\":\"https://t.me/nft/LolPop-4444\"}"
+curl -X POST http://localhost:3000/api/gifts -H "Content-Type: application/json" -H "X-Admin-Token: secret" -d "{\"id\":4444,\"name\":\"Lol Pop\",\"model\":\"Mandarin\",\"backdrop\":\"Onyx Black\",\"symbol\":\"Kudu Totem\",\"backdrop_colors\":[\"#4d5254\",\"#313638\"],\"price\":5,\"is_monochrome\":true,\"image\":\"https://nft.fragment.com/gift/lolpop-4444.webp\",\"url\":\"https://t.me/nft/LolPop-4444\"}"
 ```
 
 ## Постійна адреса без сервера: GitHub Pages

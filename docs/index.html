@@ -8,15 +8,39 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header>
-    <input id="search" type="search" placeholder="Пошук за назвою або #ID" aria-label="Пошук за назвою або ID">
-    <div class="filters">
-      <button class="chip" data-filter="mono" aria-pressed="false">⚫ Монохромні</button>
-      <button class="chip" data-filter="fewDigits" aria-pressed="false">🔢 ≤ 3 різних цифри</button>
+  <header class="top">
+    <div class="title-row">
+      <h1>Подарунки</h1>
+      <span id="count" class="count" aria-live="polite"></span>
     </div>
-    <p id="count" class="hint" aria-live="polite"></p>
+    <label class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="search" type="search" placeholder="Пошук за назвою або #номером" aria-label="Пошук за назвою або номером">
+    </label>
+    <div class="chips" role="toolbar" aria-label="Фільтри">
+      <button class="chip sheet-chip" data-sheet="models" aria-haspopup="dialog">Модель</button>
+      <button class="chip sheet-chip" data-sheet="backdrops" aria-haspopup="dialog">Фон</button>
+      <button class="chip sheet-chip" data-sheet="symbols" aria-haspopup="dialog">Символ</button>
+      <button class="chip sheet-chip" data-sheet="price" aria-haspopup="dialog">Ціна</button>
+      <button class="chip" data-filter="mono" aria-pressed="false">Монохромні</button>
+      <button class="chip" data-filter="fewDigits" aria-pressed="false">≤ 3 цифри</button>
+      <button class="chip reset" id="reset" hidden>Скинути все</button>
+    </div>
   </header>
+
   <main id="grid" class="grid"></main>
+
+  <dialog id="sheet" class="sheet" aria-labelledby="sheet-title">
+    <form method="dialog">
+      <div class="sheet-head">
+        <h2 id="sheet-title"></h2>
+        <button type="button" id="sheet-clear" class="link">Скинути</button>
+      </div>
+      <input id="sheet-search" class="sheet-search" type="search" placeholder="Пошук" aria-label="Пошук у списку">
+      <div id="sheet-body" class="sheet-body"></div>
+      <button id="sheet-done" class="primary">Показати</button>
+    </form>
+  </dialog>
 
   <script src="filters.js"></script>
   <script src="app.js"></script>
