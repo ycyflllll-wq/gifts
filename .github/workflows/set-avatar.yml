@@ -12,6 +12,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check bot token
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+        run: |
+          # A token has the shape 123456789:AAA... — anything else means the secret was pasted wrong.
+          [[ "$TG_BOT_TOKEN" =~ ^[0-9]+:[A-Za-z0-9_-]{30,}$ ]] || { echo "TG_BOT_TOKEN doesn't look like a bot token (length ${#TG_BOT_TOKEN})"; exit 1; }
+          curl -s "https://api.telegram.org/bot${TG_BOT_TOKEN}/getMe" | jq '{ok, description, username: .result.username}'
       - name: Upload profile photo
         env:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
