@@ -71,6 +71,11 @@ h1 { margin: 0 0 10px; font-size: 22px; }
 .card .thumb { aspect-ratio: 1; border-radius: 12px; }
 .card .thumb:empty::after { content: "🎁"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 40px; }
 .thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.market {
+  position: absolute; top: 6px; left: 6px;
+  padding: 2px 7px; border-radius: 999px;
+  background: rgb(0 0 0 / 0.45); color: #fff; font-size: 11px;
+}
 .info { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 0 2px; }
 .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .num { flex: none; color: var(--hint); font-size: 13px; }

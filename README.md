@@ -3,14 +3,29 @@
 Каталог цифрових подарунків з фільтрами «Монохромні», «≤ 3 різних цифри в номері» та пошуком.
 
 ```
-server.js           Express: віддає docs/ та API (потрібен лише локально)
-docs/gifts.json   дані каталогу (15 тестових подарунків), сюди ж пише POST
-docs/index.html   розмітка
-docs/styles.css   стилі на змінних теми Telegram
-docs/filters.js   логіка фільтрів (спільна для браузера і тесту)
-docs/app.js       рендер, Telegram SDK: MainButton, HapticFeedback, тема
-test/               тест фільтрів (node --test)
+server.js                Express: віддає docs/ та API (потрібен лише локально)
+docs/gifts.json          дані каталогу; генерується scripts/collect.mjs
+docs/index.html          розмітка
+docs/styles.css          стилі
+docs/filters.js          логіка фільтрів (спільна для браузера і тесту)
+docs/app.js              рендер, Telegram SDK: MainButton, BackButton, HapticFeedback, тема
+scripts/login.mjs        одноразовий вхід у Telegram → .env і GitHub Secrets
+scripts/collect.mjs      збирає подарунки з Telegram Market у docs/gifts.json
+.github/workflows/       запускає collect.mjs кожні 30 хвилин
+test/                    тести (node --test)
 ```
+
+## Подарунки з маркетів
+
+Зараз підключено **Telegram Market** (офіційний API Telegram, `payments.getResaleStarGifts`): найдешевші 50 лотів з кожної колекції.
+
+1. Отримайте `api_id` і `api_hash` на https://my.telegram.org → API development tools.
+2. Увійдіть один раз: `node scripts/login.mjs` (номер, код з Telegram, пароль 2FA). Сесія збережеться у `.env` (не потрапляє в git) і в GitHub Secrets (`TG_API_ID`, `TG_API_HASH`, `TG_SESSION`).
+3. GitHub Actions (`Collect gifts`) кожні ~30 хвилин оновлює `docs/gifts.json`. Запустити вручну: вкладка **Actions** → **Collect gifts** → **Run workflow**. Локально: `node --env-file=.env scripts/collect.mjs`.
+
+Сесія дає повний доступ до акаунта Telegram — краще використовувати окремий акаунт. Якщо сесія витекла: Telegram → Налаштування → Пристрої → завершіть цей сеанс, і запустіть `login.mjs` знову.
+
+«Монохромні» для маркетних лотів = фон чорний, білий або сірий (майже без насиченості).
 
 ## Запуск локально
 
@@ -39,7 +54,7 @@ curl -X POST http://localhost:3000/api/gifts -H "Content-Type: application/json"
 
 Адреса сайту: `https://<ваш-логін>.github.io/gifts/` — її вставте в BotFather (крок 3 нижче).
 
-Щоб змінити каталог: відкрийте `docs/gifts.json` у репозиторії → ✏️ → редагуйте → **Commit changes**. Сайт оновиться за 1–2 хвилини.
+`docs/gifts.json` тепер щоразу перезаписує автооновлення, тому редагувати його вручну немає сенсу.
 
 ## Як підключити до Telegram-бота
 

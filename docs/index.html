@@ -18,6 +18,7 @@
       <input id="search" type="search" placeholder="Пошук за назвою або #номером" aria-label="Пошук за назвою або номером">
     </label>
     <div class="chips" role="toolbar" aria-label="Фільтри">
+      <button class="chip sheet-chip" data-sheet="names" aria-haspopup="dialog">Колекція</button>
       <button class="chip sheet-chip" data-sheet="models" aria-haspopup="dialog">Модель</button>
       <button class="chip sheet-chip" data-sheet="backdrops" aria-haspopup="dialog">Фон</button>
       <button class="chip sheet-chip" data-sheet="symbols" aria-haspopup="dialog">Символ</button>
@@ -29,6 +30,7 @@
   </header>
 
   <main id="grid" class="grid"></main>
+  <div id="more" aria-hidden="true"></div>
 
   <dialog id="sheet" class="sheet" aria-labelledby="sheet-title">
     <form method="dialog">

@@ -1,8 +1,13 @@
 const tg = window.Telegram?.WebApp;
-const state = { mono: false, fewDigits: false, query: '', models: [], backdrops: [], symbols: [], priceMin: null, priceMax: null };
-const SHEETS = { models: 'Модель', backdrops: 'Фон', symbols: 'Символ', price: 'Ціна' };
-const FIELD = { models: 'model', backdrops: 'backdrop', symbols: 'symbol' };
+const EMPTY = () => ({ mono: false, fewDigits: false, query: '', names: [], models: [], backdrops: [], symbols: [], priceMin: null, priceMax: null });
+const state = EMPTY();
+const SHEETS = { names: 'Колекція', models: 'Модель', backdrops: 'Фон', symbols: 'Символ', price: 'Ціна' };
+const FIELD = { names: 'name', models: 'model', backdrops: 'backdrop', symbols: 'symbol' };
+const PAGE = 60; // cards added per scroll step
+const MAX_OPTIONS = 200; // rows shown in a filter sheet before asking to search
 let gifts = [];
+let list = [];
+let shown = 0;
 let openSheet = null;
 
 const $ = s => document.querySelector(s);
@@ -12,6 +17,7 @@ const swatch = ([c1, c2] = []) => isColor(c1) && isColor(c2) ? `--c1:${c1};--c2:
 const fmt = n => Number(n).toLocaleString('uk-UA');
 const plural = n => ({ one: 'подарунок', few: 'подарунки' })[new Intl.PluralRules('uk').select(n)] ?? 'подарунків';
 const TON = '<svg class="ton" viewBox="0 0 24 24" aria-label="TON"><path d="M12 21 3.6 6.6A1 1 0 0 1 4.5 5h15a1 1 0 0 1 .9 1.6L12 21Zm0 0V5"/></svg>';
+const STARS = '<span aria-label="Stars">⭐</span>';
 
 const isActive = key => key === 'price' ? state.priceMin != null || state.priceMax != null : state[key].length > 0;
 const anyFilter = () => state.mono || state.fewDigits || state.query.trim() || Object.keys(SHEETS).some(isActive);
@@ -35,15 +41,29 @@ const card = g => `
   <a class="card" href="${esc(g.url)}" target="_blank" rel="noopener" title="${esc(`${g.model ?? ''} · ${g.backdrop ?? ''} · ${g.symbol ?? ''}`)}">
     <div class="thumb" style="${swatch(g.backdrop_colors)}">
       <img src="${esc(g.image)}" alt="${esc(g.name)}" loading="lazy" onerror="this.remove()">
+      ${g.market ? `<span class="market">${esc(g.market)}</span>` : ''}
     </div>
     <div class="info"><span class="name">${esc(g.name)}</span><span class="num">#${esc(g.id)}</span></div>
-    <div class="buy">${TON}${esc(fmt(g.price))}</div>
+    <div class="buy">${g.currency === 'XTR' ? STARS : TON}${esc(fmt(g.price))}</div>
   </a>`;
 
+const moreObserver = new IntersectionObserver(([e]) => { if (e.isIntersecting) showMore(); }, { rootMargin: '800px' });
+
+function showMore() {
+  if (shown >= list.length) return;
+  $('#grid').insertAdjacentHTML('beforeend', list.slice(shown, shown + PAGE).map(card).join(''));
+  shown += PAGE;
+  // Re-observing fires again right away if the sentinel is still on screen (tall screens, fast scroll).
+  moreObserver.unobserve($('#more'));
+  moreObserver.observe($('#more'));
+}
+
 function render() {
-  const list = filterGifts(gifts, state);
-  $('#count').textContent = `${list.length} з ${gifts.length}`;
-  $('#grid').innerHTML = list.map(card).join('') || '<p class="empty">Нічого не знайдено</p>';
+  list = filterGifts(gifts, state);
+  shown = 0;
+  $('#count').textContent = `${fmt(list.length)} з ${fmt(gifts.length)}`;
+  $('#grid').innerHTML = list.length ? '' : '<p class="empty">Нічого не знайдено</p>';
+  showMore();
 
   document.querySelectorAll('[data-sheet]').forEach(chip => {
     chip.textContent = chipLabel(chip.dataset.sheet);
@@ -70,23 +90,25 @@ function renderSheet() {
   }
 
   // Each value with how many gifts have it, plus one gift to borrow a picture/colors from.
+  // Models belong to a collection, so once collections are picked only their models are offered.
+  const pool = key === 'models' && state.names.length ? gifts.filter(g => state.names.includes(g.name)) : gifts;
   const opts = new Map();
-  for (const g of gifts) {
+  for (const g of pool) {
     const v = g[FIELD[key]];
     if (v) opts.set(v, { n: (opts.get(v)?.n ?? 0) + 1, g: opts.get(v)?.g ?? g });
   }
   const q = $('#sheet-search').value.trim().toLowerCase();
-  $('#sheet-body').innerHTML = [...opts]
-    .filter(([v]) => v.toLowerCase().includes(q))
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([v, { n, g }]) => `
+  const rows = [...opts].filter(([v]) => v.toLowerCase().includes(q)).sort(([a], [b]) => a.localeCompare(b));
+  $('#sheet-body').innerHTML = rows.slice(0, MAX_OPTIONS).map(([v, { n, g }]) => `
       <label class="opt">
-        ${key === 'models' ? `<span class="opt-img thumb" style="${swatch(g.backdrop_colors)}"><img src="${esc(g.image)}" alt="" loading="lazy" onerror="this.remove()"></span>` : ''}
+        ${key === 'models' || key === 'names' ? `<span class="opt-img thumb" style="${swatch(g.backdrop_colors)}"><img src="${esc(g.image)}" alt="" loading="lazy" onerror="this.remove()"></span>` : ''}
         ${key === 'backdrops' ? `<span class="dot thumb" style="${swatch(g.backdrop_colors)}"></span>` : ''}
         <span class="opt-name">${esc(v)}${key === 'models' ? `<small>${esc(g.name)}</small>` : ''}</span>
         <span class="opt-count">${n}</span>
         <input type="checkbox" value="${esc(v)}" ${state[key].includes(v) ? 'checked' : ''}>
-      </label>`).join('') || '<p class="empty">Нічого не знайдено</p>';
+      </label>`).join('')
+    + (rows.length > MAX_OPTIONS ? `<p class="empty">Ще ${rows.length - MAX_OPTIONS} — уточніть пошук або виберіть колекцію</p>` : '')
+    || '<p class="empty">Нічого не знайдено</p>';
 }
 
 function showSheet(key) {
@@ -110,7 +132,7 @@ document.querySelectorAll('[data-filter]').forEach(chip => chip.addEventListener
 }));
 
 $('#reset').addEventListener('click', () => {
-  Object.assign(state, { mono: false, fewDigits: false, query: '', models: [], backdrops: [], symbols: [], priceMin: null, priceMax: null });
+  Object.assign(state, EMPTY());
   document.querySelectorAll('[data-filter]').forEach(chip => chip.setAttribute('aria-pressed', false));
   $('#search').value = '';
   tg?.HapticFeedback.impactOccurred('light');
