@@ -1,77 +1,106 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">
   <defs>
     <!-- Telegram's "Black" gift backdrop colours -->
-    <radialGradient id="bg" cx="50%" cy="42%" r="72%">
+    <radialGradient id="bg" cx="50%" cy="40%" r="72%">
       <stop offset="0" stop-color="#363738"/>
       <stop offset="1" stop-color="#0e0f0f"/>
     </radialGradient>
-    <linearGradient id="skin" gradientUnits="userSpaceOnUse" x1="0" y1="150" x2="0" y2="460">
-      <stop offset="0" stop-color="#7cc25a"/>
-      <stop offset="1" stop-color="#4f9a37"/>
+    <linearGradient id="skin" gradientUnits="userSpaceOnUse" x1="0" y1="110" x2="0" y2="500">
+      <stop offset="0" stop-color="#7ccc4e"/>
+      <stop offset="1" stop-color="#3f9a2e"/>
     </linearGradient>
-    <linearGradient id="shirt" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#4b7fe0"/>
-      <stop offset="1" stop-color="#2c55b0"/>
+    <linearGradient id="hood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffa63d"/>
+      <stop offset="1" stop-color="#e3701a"/>
+    </linearGradient>
+    <linearGradient id="heart" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe46b"/>
+      <stop offset="1" stop-color="#f5b81c"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe08a"/>
+      <stop offset="1" stop-color="#e09a1c"/>
     </linearGradient>
     <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".45"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity=".1"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".5"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity=".12"/>
     </linearGradient>
     <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity=".55"/>
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity=".6"/>
     </filter>
-    <path id="spark" d="M0-14C2-4 4-2 14 0 4 2 2 4 0 14-2 4-4 2-14 0-4-2-2-4 0-14Z"/>
-    <!-- head + eye bumps as one silhouette -->
-    <g id="head">
-      <ellipse cx="290" cy="330" rx="172" ry="128"/>
-      <circle cx="212" cy="238" r="74"/>
-      <circle cx="360" cy="228" r="80"/>
+
+    <!-- faint repeating icons, like the symbol pattern on Telegram gift backdrops -->
+    <pattern id="icons" width="96" height="96" patternUnits="userSpaceOnUse" patternTransform="rotate(-12)">
+      <g fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round">
+        <circle cx="22" cy="22" r="10"/><path d="M30 30l9 9"/>
+        <circle cx="70" cy="70" r="10"/><path d="M78 78l9 9"/>
+      </g>
+    </pattern>
+
+    <!-- one silhouette for the plush, so outlines merge -->
+    <g id="plush">
+      <ellipse cx="215" cy="468" rx="62" ry="34" transform="rotate(-14 215 468)"/>
+      <ellipse cx="392" cy="468" rx="62" ry="34" transform="rotate(14 392 468)"/>
+      <ellipse cx="303" cy="395" rx="112" ry="100"/>
+      <ellipse cx="303" cy="250" rx="140" ry="104"/>
+      <circle cx="243" cy="182" r="60"/>
+      <circle cx="363" cy="182" r="60"/>
     </g>
+    <path id="heartShape" d="M303 470c-60-36-92-70-92-104 0-24 18-42 42-42 22 0 38 14 50 32 12-18 28-32 50-32 24 0 42 18 42 42 0 34-32 68-92 104Z"/>
   </defs>
 
   <rect width="640" height="640" fill="url(#bg)"/>
-
-  <g fill="#fff" opacity=".16">
-    <use href="#spark" transform="translate(120 140) scale(1.1)"/>
-    <use href="#spark" transform="translate(520 120) scale(.8)"/>
-    <use href="#spark" transform="translate(95 380) scale(.7)"/>
-    <use href="#spark" transform="translate(555 300) scale(.9)"/>
-    <use href="#spark" transform="translate(470 60) scale(.6)"/>
-  </g>
+  <rect width="640" height="640" fill="url(#icons)" opacity=".05"/>
 
   <g filter="url(#shadow)">
-    <!-- shirt -->
-    <path d="M110 640c10-110 80-170 180-175 100 5 170 65 180 175Z" fill="url(#shirt)" stroke="#16264f" stroke-width="10"/>
-    <!-- outline first, fill on top, so the bumps merge into one head shape -->
-    <use href="#head" fill="none" stroke="#1f3a14" stroke-width="18"/>
-    <use href="#head" fill="url(#skin)"/>
+    <!-- hood behind the head -->
+    <path d="M150 262c-14-110 64-170 153-170s167 60 153 170c-8 40-40 62-60 62H210c-20 0-52-22-60-62Z" fill="url(#hood)" stroke="#5a2a08" stroke-width="10"/>
+    <use href="#plush" fill="none" stroke="#1b3a10" stroke-width="18"/>
+    <use href="#plush" fill="url(#skin)"/>
   </g>
 
-  <!-- eyes -->
-  <g stroke="#1f3a14" stroke-width="6">
-    <ellipse cx="214" cy="244" rx="50" ry="40" fill="#fff"/>
-    <ellipse cx="362" cy="236" rx="54" ry="42" fill="#fff"/>
-  </g>
-  <circle cx="234" cy="254" r="17" fill="#111"/>
-  <circle cx="384" cy="246" r="18" fill="#111"/>
-  <circle cx="228" cy="248" r="5" fill="#fff"/>
-  <circle cx="377" cy="240" r="5" fill="#fff"/>
-  <!-- heavy, sleepy lids -->
-  <path d="M156 250c4-72 112-72 116 0-38-12-78-12-116 0Z" fill="url(#skin)"/>
-  <path d="M300 242c4-78 120-78 124 0-40-13-84-13-124 0Z" fill="url(#skin)"/>
-  <g fill="none" stroke="#1f3a14" stroke-width="7" stroke-linecap="round">
-    <path d="M160 250c38-12 74-12 110 0"/>
-    <path d="M304 242c40-13 80-13 116 0"/>
-  </g>
+  <!-- belly and stitched seam -->
+  <ellipse cx="303" cy="410" rx="74" ry="66" fill="#a6e07a" opacity=".55"/>
+  <path d="M303 130v-6M303 316v170" stroke="#1b3a10" stroke-width="4" stroke-dasharray="10 9" opacity=".35"/>
 
-  <!-- wide lips -->
-  <path d="M168 360c70-22 170-24 250-12-8 34-104 62-232 34-14-4-20-12-18-22Z" fill="#b8563f" stroke="#1f3a14" stroke-width="7" stroke-linejoin="round"/>
-  <path d="M178 362c70-12 160-14 236-10" fill="none" stroke="#1f3a14" stroke-width="6" stroke-linecap="round"/>
+  <!-- hood brim over the forehead -->
+  <path d="M170 168c30-56 236-56 266 0-20-8-50-22-133-22s-113 14-133 22Z" fill="url(#hood)" stroke="#5a2a08" stroke-width="8" stroke-linejoin="round"/>
 
-  <!-- gold magnifier: "finder" -->
+  <!-- big glossy eyes -->
+  <g stroke="#1b3a10" stroke-width="7">
+    <circle cx="245" cy="196" r="42" fill="#fff"/>
+    <circle cx="361" cy="196" r="42" fill="#fff"/>
+  </g>
+  <circle cx="252" cy="200" r="27" fill="#3e9ad8"/>
+  <circle cx="368" cy="200" r="27" fill="#3e9ad8"/>
+  <circle cx="254" cy="202" r="14" fill="#0d1b2a"/>
+  <circle cx="370" cy="202" r="14" fill="#0d1b2a"/>
+  <circle cx="244" cy="190" r="8" fill="#fff"/>
+  <circle cx="360" cy="190" r="8" fill="#fff"/>
+
+  <!-- happy lips -->
+  <path d="M222 268c40 44 122 44 162 0-6 40-44 66-81 66s-75-26-81-66Z" fill="#e24d43" stroke="#1b3a10" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M230 274c36 30 110 30 146 0" fill="none" stroke="#1b3a10" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- heart hugged by the arms -->
   <g filter="url(#shadow)">
-    <line x1="510" y1="510" x2="535" y2="535" stroke="#e0a526" stroke-width="34" stroke-linecap="round"/>
-    <circle cx="455" cy="455" r="66" fill="url(#glass)" stroke="#f3c14b" stroke-width="20"/>
-    <path d="M414 440a42 42 0 0 1 31-28" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" opacity=".85"/>
+    <use href="#heartShape" fill="url(#heart)" stroke="#7a4f00" stroke-width="7" stroke-linejoin="round"/>
   </g>
+  <path d="M262 352c10-10 28-12 36 0" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".7"/>
+  <g fill="url(#skin)" stroke="#1b3a10" stroke-width="8">
+    <ellipse cx="226" cy="392" rx="30" ry="46" transform="rotate(-28 226 392)"/>
+    <ellipse cx="380" cy="392" rx="30" ry="46" transform="rotate(28 380 392)"/>
+  </g>
+
+  <!-- gold magnifier: the "seeker" -->
+  <g filter="url(#shadow)">
+    <line x1="532" y1="452" x2="556" y2="476" stroke="#d48d16" stroke-width="30" stroke-linecap="round"/>
+    <circle cx="486" cy="406" r="60" fill="url(#glass)" stroke="url(#gold)" stroke-width="18"/>
+    <path d="M449 392a38 38 0 0 1 28-26" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".85"/>
+  </g>
+
+  <!-- name -->
+  <text x="320" y="572" text-anchor="middle" font-family="Arial Black, Segoe UI Black, Arial, sans-serif" font-weight="900" font-size="42" letter-spacing="3" filter="url(#shadow)">
+    <tspan fill="#ffffff">GIFT </tspan><tspan fill="#ffc542">SEEKER</tspan>
+  </text>
 </svg>
