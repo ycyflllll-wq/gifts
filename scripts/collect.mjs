@@ -84,10 +84,15 @@ async function main() {
   console.log(`Saved ${out.length} gifts from ${onResale.length} collections`);
 
   if (process.env.TG_BOT_TOKEN) {
-    const store = readJson('alerts.json', { offset: 0, owner: null, alerts: [] });
-    const username = await runAlerts({ token: process.env.TG_BOT_TOKEN, store, prev, next: out });
-    writeJson('alerts.json', store, true);
-    writeJson('docs/bot.json', { username });
+    // A broken bot token must not stop the fresh gifts from being published.
+    try {
+      const store = readJson('alerts.json', { offset: 0, owner: null, alerts: [] });
+      const username = await runAlerts({ token: process.env.TG_BOT_TOKEN, store, prev, next: out });
+      writeJson('alerts.json', store, true);
+      writeJson('docs/bot.json', { username });
+    } catch (e) {
+      console.error(`Alerts skipped: ${e.message}`);
+    }
   }
 }
 
