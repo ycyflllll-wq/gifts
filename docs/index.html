@@ -7,17 +7,22 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-view="gifts">
   <header class="top">
     <div class="title-row">
-      <h1>Подарунки</h1>
-      <span id="count" class="count" aria-live="polite"></span>
+      <div class="tabs" role="tablist">
+        <button role="tab" data-view="gifts" aria-selected="true">Подарунки</button>
+        <button role="tab" data-view="collections" aria-selected="false">Колекції</button>
+      </div>
+      <span id="count" class="count gifts-only" aria-live="polite"></span>
     </div>
-    <label class="search">
+    <label class="search gifts-only">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input id="search" type="search" placeholder="Пошук за назвою або #номером" aria-label="Пошук за назвою або номером">
     </label>
-    <div class="chips" role="toolbar" aria-label="Фільтри">
+    <div class="chips gifts-only" role="toolbar" aria-label="Фільтри">
+      <button class="chip alert-chip" id="alert" hidden>🔔 Сповіщати</button>
+      <button class="chip" id="sort" aria-label="Сортування">↑ Дешевші</button>
       <button class="chip sheet-chip" data-sheet="names" aria-haspopup="dialog">Колекція</button>
       <button class="chip sheet-chip" data-sheet="models" aria-haspopup="dialog">Модель</button>
       <button class="chip sheet-chip" data-sheet="backdrops" aria-haspopup="dialog">Фон</button>
@@ -29,8 +34,9 @@
     </div>
   </header>
 
-  <main id="grid" class="grid"></main>
-  <div id="more" aria-hidden="true"></div>
+  <main id="grid" class="grid gifts-only"></main>
+  <div id="more" class="gifts-only" aria-hidden="true"></div>
+  <section id="collections" class="collections" aria-label="Колекції"></section>
 
   <dialog id="sheet" class="sheet" aria-labelledby="sheet-title">
     <form method="dialog">
@@ -41,6 +47,16 @@
       <input id="sheet-search" class="sheet-search" type="search" placeholder="Пошук" aria-label="Пошук у списку">
       <div id="sheet-body" class="sheet-body"></div>
       <button id="sheet-done" class="primary">Показати</button>
+    </form>
+  </dialog>
+
+  <dialog id="gift" class="sheet" aria-label="Подарунок">
+    <form method="dialog">
+      <div class="sheet-head">
+        <span></span>
+        <button class="link">Закрити</button>
+      </div>
+      <div id="gift-body" class="sheet-body detail"></div>
     </form>
   </dialog>
 
