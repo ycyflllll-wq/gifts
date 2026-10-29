@@ -1,0 +1,22 @@
+name: Set bot avatar
+
+# Runs whenever docs/bot-avatar.jpg changes, or by hand from the Actions tab.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['docs/bot-avatar.jpg']
+
+jobs:
+  avatar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload profile photo
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+        run: |
+          res=$(curl -s -F 'photo={"type":"static","photo":"attach://avatar"}' -F 'avatar=@docs/bot-avatar.jpg' \
+            "https://api.telegram.org/bot${TG_BOT_TOKEN}/setMyProfilePhoto")
+          echo "$res" | jq '{ok, description}'
+          echo "$res" | jq -e .ok > /dev/null

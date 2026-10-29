@@ -1,55 +1,77 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">
   <defs>
+    <!-- Telegram's "Black" gift backdrop colours -->
     <radialGradient id="bg" cx="50%" cy="42%" r="72%">
-      <stop offset="0" stop-color="#5aa8ff"/>
-      <stop offset="1" stop-color="#16327a"/>
+      <stop offset="0" stop-color="#363738"/>
+      <stop offset="1" stop-color="#0e0f0f"/>
     </radialGradient>
-    <linearGradient id="box" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#d9e5ff"/>
+    <linearGradient id="skin" gradientUnits="userSpaceOnUse" x1="0" y1="150" x2="0" y2="460">
+      <stop offset="0" stop-color="#7cc25a"/>
+      <stop offset="1" stop-color="#4f9a37"/>
     </linearGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffe7a0"/>
-      <stop offset="1" stop-color="#f3a21c"/>
+    <linearGradient id="shirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4b7fe0"/>
+      <stop offset="1" stop-color="#2c55b0"/>
     </linearGradient>
     <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity=".55"/>
-      <stop offset="1" stop-color="#bcd6ff" stop-opacity=".2"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity=".1"/>
     </linearGradient>
     <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#08163f" flood-opacity=".45"/>
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity=".55"/>
     </filter>
     <path id="spark" d="M0-14C2-4 4-2 14 0 4 2 2 4 0 14-2 4-4 2-14 0-4-2-2-4 0-14Z"/>
+    <!-- head + eye bumps as one silhouette -->
+    <g id="head">
+      <ellipse cx="290" cy="330" rx="172" ry="128"/>
+      <circle cx="212" cy="238" r="74"/>
+      <circle cx="360" cy="228" r="80"/>
+    </g>
   </defs>
 
   <rect width="640" height="640" fill="url(#bg)"/>
 
-  <!-- faint sparkles, like the symbol pattern on Telegram gift backdrops -->
-  <g fill="#fff" opacity=".22">
-    <use href="#spark" transform="translate(150 150) scale(1.1)"/>
-    <use href="#spark" transform="translate(490 140) scale(.8)"/>
-    <use href="#spark" transform="translate(110 360) scale(.7)"/>
-    <use href="#spark" transform="translate(540 330) scale(1)"/>
-    <use href="#spark" transform="translate(200 540) scale(.8)"/>
-    <use href="#spark" transform="translate(320 95) scale(.6)"/>
+  <g fill="#fff" opacity=".16">
+    <use href="#spark" transform="translate(120 140) scale(1.1)"/>
+    <use href="#spark" transform="translate(520 120) scale(.8)"/>
+    <use href="#spark" transform="translate(95 380) scale(.7)"/>
+    <use href="#spark" transform="translate(555 300) scale(.9)"/>
+    <use href="#spark" transform="translate(470 60) scale(.6)"/>
   </g>
 
-  <!-- gift box -->
   <g filter="url(#shadow)">
-    <rect x="160" y="300" width="250" height="185" rx="24" fill="url(#box)"/>
-    <rect x="140" y="240" width="290" height="80" rx="22" fill="#fff"/>
-    <rect x="265" y="240" width="40" height="245" fill="url(#gold)"/>
-    <rect x="140" y="300" width="290" height="14" fill="#16327a" opacity=".08"/>
-    <path d="M285 240C240 168 172 186 196 228c14 24 62 18 89 12Z" fill="url(#gold)"/>
-    <path d="M285 240c45-72 113-54 89-12-14 24-62 18-89 12Z" fill="url(#gold)"/>
-    <circle cx="285" cy="240" r="19" fill="#f3a21c"/>
+    <!-- shirt -->
+    <path d="M110 640c10-110 80-170 180-175 100 5 170 65 180 175Z" fill="url(#shirt)" stroke="#16264f" stroke-width="10"/>
+    <!-- outline first, fill on top, so the bumps merge into one head shape -->
+    <use href="#head" fill="none" stroke="#1f3a14" stroke-width="18"/>
+    <use href="#head" fill="url(#skin)"/>
   </g>
 
-  <!-- magnifier: "finder" -->
+  <!-- eyes -->
+  <g stroke="#1f3a14" stroke-width="6">
+    <ellipse cx="214" cy="244" rx="50" ry="40" fill="#fff"/>
+    <ellipse cx="362" cy="236" rx="54" ry="42" fill="#fff"/>
+  </g>
+  <circle cx="234" cy="254" r="17" fill="#111"/>
+  <circle cx="384" cy="246" r="18" fill="#111"/>
+  <circle cx="228" cy="248" r="5" fill="#fff"/>
+  <circle cx="377" cy="240" r="5" fill="#fff"/>
+  <!-- heavy, sleepy lids -->
+  <path d="M156 250c4-72 112-72 116 0-38-12-78-12-116 0Z" fill="url(#skin)"/>
+  <path d="M300 242c4-78 120-78 124 0-40-13-84-13-124 0Z" fill="url(#skin)"/>
+  <g fill="none" stroke="#1f3a14" stroke-width="7" stroke-linecap="round">
+    <path d="M160 250c38-12 74-12 110 0"/>
+    <path d="M304 242c40-13 80-13 116 0"/>
+  </g>
+
+  <!-- wide lips -->
+  <path d="M168 360c70-22 170-24 250-12-8 34-104 62-232 34-14-4-20-12-18-22Z" fill="#b8563f" stroke="#1f3a14" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M178 362c70-12 160-14 236-10" fill="none" stroke="#1f3a14" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- gold magnifier: "finder" -->
   <g filter="url(#shadow)">
-    <!-- starts under the ring's stroke so the handle doesn't show through the glass -->
-    <line x1="470" y1="470" x2="510" y2="510" stroke="#0d1a44" stroke-width="36" stroke-linecap="round"/>
-    <circle cx="405" cy="405" r="72" fill="url(#glass)" stroke="#0d1a44" stroke-width="22"/>
-    <path d="M362 388a46 46 0 0 1 34-30" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" opacity=".85"/>
+    <line x1="510" y1="510" x2="535" y2="535" stroke="#e0a526" stroke-width="34" stroke-linecap="round"/>
+    <circle cx="455" cy="455" r="66" fill="url(#glass)" stroke="#f3c14b" stroke-width="20"/>
+    <path d="M414 440a42 42 0 0 1 31-28" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" opacity=".85"/>
   </g>
 </svg>
