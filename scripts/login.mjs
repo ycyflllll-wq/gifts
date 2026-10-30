@@ -13,7 +13,8 @@ async function askHidden(q) {
   try { return (await rl.question('')).trim(); } finally { delete rl._writeToOutput; rl.output.write('\n'); }
 }
 
-const apiId = Number(await ask('api_id (з my.telegram.org): '));
+// Keep only digits: a stray bracket or space from copy-paste is the usual mistake here.
+const apiId = Number((await ask('api_id (з my.telegram.org): ')).replace(/\D/g, ''));
 const apiHash = await ask('api_hash (з my.telegram.org): ');
 if (!Number.isInteger(apiId) || !/^[0-9a-f]{32}$/i.test(apiHash)) {
   console.error('api_id має бути числом, api_hash — 32 символи. Перевірте на my.telegram.org і запустіть ще раз.');
