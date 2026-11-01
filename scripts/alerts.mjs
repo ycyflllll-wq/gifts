@@ -1,11 +1,11 @@
 // Bot side of alerts: reads commands sent to the bot since the last run, keeps filters in alerts.json,
-// and messages the owner about new listings that match them. Runs inside the collector (every ~30 min).
+// and messages the owner about new listings that match them. Runs inside the collector (every ~10 min).
 import { createRequire } from 'node:module';
 
 const { filterGifts } = createRequire(import.meta.url)('../docs/filters.js');
 
 const MAX_PER_ALERT = 10; // listings per alert per message, so a broad filter can't flood the chat
-const LISTS = ['names', 'models', 'backdrops', 'symbols'];
+const LISTS = ['names', 'models', 'backdrops', 'symbols', 'markets'];
 const HELP = [
   'Я надсилаю сповіщення про нові подарунки на маркетах.',
   '',
@@ -13,16 +13,18 @@ const HELP = [
   '/alerts — мої сповіщення',
   '/stop 3 — видалити сповіщення №3, /stop all — усі',
   '',
-  'Я відповідаю раз на ~30 хвилин.',
+  'Я відповідаю раз на ~10–20 хвилин.',
 ].join('\n');
 
 const money = g => `${g.price} ${g.currency === 'XTR' ? '⭐' : 'TON'}`;
-const line = g => `${g.name} #${g.id} — ${money(g)}\n${g.url}`;
+const line = g => `${g.name} #${g.id} — ${money(g)}${g.market ? ` (${g.market})` : ''}\n${g.url}`;
+// MRKT listings all share one link, so a listing is told apart by market, collection and number.
+const key = g => `${g.market}|${g.name}|${g.id}`;
 
 // Listings that are new or got cheaper since the previous run.
 export function freshListings(prev, next) {
-  const old = new Map(prev.map(g => [g.url, g.price]));
-  return next.filter(g => !old.has(g.url) || g.price < old.get(g.url));
+  const old = new Map(prev.map(g => [key(g), g.price]));
+  return next.filter(g => !old.has(key(g)) || g.price < old.get(key(g)));
 }
 
 // Keeps only known filter fields with the right types: the command text comes from a chat.
@@ -38,7 +40,7 @@ export function cleanFilter(raw) {
 
 export function describe(f) {
   const parts = [];
-  const names = { names: 'Колекція', models: 'Модель', backdrops: 'Фон', symbols: 'Символ' };
+  const names = { names: 'Колекція', models: 'Модель', backdrops: 'Фон', symbols: 'Символ', markets: 'Маркет' };
   for (const k of LISTS) if (f[k]?.length) parts.push(`${names[k]}: ${f[k].join(', ')}`);
   if (f.priceMin != null || f.priceMax != null) parts.push(`Ціна: ${f.priceMin ?? 0}–${f.priceMax ?? '∞'}`);
   if (f.mono) parts.push('Монохромні');

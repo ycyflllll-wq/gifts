@@ -1,8 +1,8 @@
 const tg = window.Telegram?.WebApp;
-const EMPTY = () => ({ mono: false, fewDigits: false, query: '', names: [], models: [], backdrops: [], symbols: [], priceMin: null, priceMax: null });
+const EMPTY = () => ({ mono: false, fewDigits: false, query: '', names: [], models: [], backdrops: [], symbols: [], markets: [], priceMin: null, priceMax: null });
 const state = EMPTY();
-const SHEETS = { names: 'Колекція', models: 'Модель', backdrops: 'Фон', symbols: 'Символ', price: 'Ціна' };
-const FIELD = { names: 'name', models: 'model', backdrops: 'backdrop', symbols: 'symbol' };
+const SHEETS = { names: 'Колекція', models: 'Модель', backdrops: 'Фон', symbols: 'Символ', markets: 'Маркет', price: 'Ціна' };
+const FIELD = { names: 'name', models: 'model', backdrops: 'backdrop', symbols: 'symbol', markets: 'market' };
 const PAGE = 60; // cards added per scroll step
 const MAX_OPTIONS = 200; // rows shown in a filter sheet before asking to search
 const byCurrency = (a, b) => (a.currency === 'XTR') - (b.currency === 'XTR'); // TON and Stars prices can't be compared
@@ -177,7 +177,9 @@ function showGift(g) {
       ${row('Модель', g.model, g.model_rarity)}${row('Фон', g.backdrop, g.backdrop_rarity)}${row('Символ', g.symbol, g.symbol_rarity)}${row('Маркет', g.market)}
     </dl>
     <a class="buy primary" href="${esc(g.url)}" target="_blank" rel="noopener">Купити за ${price(g)}</a>
-    <p class="hint">Покупка відкриється в Telegram — ви підтверджуєте її самі.</p>`;
+    <p class="hint">${g.market === 'MRKT'
+      ? `Відкриється MRKT — знайдіть там ${esc(g.name)} #${esc(g.id)}. Покупку ви підтверджуєте самі.`
+      : 'Покупка відкриється в Telegram — ви підтверджуєте її самі.'}</p>`;
   showDialog($('#gift'));
 }
 

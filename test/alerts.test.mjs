@@ -12,6 +12,18 @@ test('freshListings: new or cheaper only', () => {
   const [a, b, c] = gifts;
   assert.deepStrictEqual(freshListings([a, b], [a, { ...b, price: b.price - 1 }, c]).map(g => g.id), [b.id, c.id]);
   assert.deepStrictEqual(freshListings([a], [{ ...a, price: a.price + 1 }]), []);
+  // MRKT listings share one link; each is still its own listing, and differs from the same gift on Telegram.
+  const onMrkt = { ...a, market: 'MRKT', url: 'https://t.me/mrkt/app' };
+  const other = { ...onMrkt, id: a.id + 1 };
+  assert.deepStrictEqual(freshListings([a, onMrkt], [a, onMrkt, other]), [other]);
+});
+
+test('alerts can be limited to one market', () => {
+  assert.deepStrictEqual(cleanFilter({ markets: ['MRKT'] }), { markets: ['MRKT'] });
+  const store = { offset: 0, owner: OWNER, alerts: [{ id: 1, chat: OWNER, filter: { markets: ['MRKT'] } }] };
+  const [a] = gifts;
+  assert.deepStrictEqual(alertMessages(store, [{ ...a, market: 'Telegram' }]), []);
+  assert.match(alertMessages(store, [{ ...a, market: 'MRKT' }])[0].text, /\(MRKT\)/);
 });
 
 test('cleanFilter keeps only known, well-typed fields', () => {

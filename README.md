@@ -10,18 +10,22 @@ docs/styles.css          стилі
 docs/filters.js          логіка фільтрів (спільна для браузера і тесту)
 docs/app.js              рендер, Telegram SDK: MainButton, BackButton, HapticFeedback, тема
 scripts/login.mjs        одноразовий вхід у Telegram → .env і GitHub Secrets
-scripts/collect.mjs      збирає подарунки з Telegram Market у docs/gifts.json
-.github/workflows/       запускає collect.mjs кожні 30 хвилин
+scripts/collect.mjs      збирає подарунки з Telegram Market і MRKT у docs/gifts.json
+scripts/mrkt.mjs         неофіційний API маркету MRKT
+.github/workflows/       кожні ~10 хвилин запускає collect.mjs і публікує сайт
 test/                    тести (node --test)
 ```
 
 ## Подарунки з маркетів
 
-Зараз підключено **Telegram Market** (офіційний API Telegram, `payments.getResaleStarGifts`): найдешевші 50 лотів з кожної колекції.
+Підключено:
+- **Telegram Market** (офіційний API Telegram, `payments.getResaleStarGifts`): найдешевші 50 лотів з кожної колекції.
+- **MRKT** (неофіційний API, яким користується сам міні-застосунок): найдешевші 20 лотів з кожної колекції. Збирач відкриває міні-застосунок @mrkt від імені акаунта (як кнопка «Відкрити»), отримує токен і лише читає лоти. Якщо MRKT недоступний, публікуються лише лоти Telegram. Посилання на конкретний лот MRKT не публікує, тож «Купити» відкриває MRKT, а картка підказує, який лот шукати.
+- Portals не підключено на прохання власника; Tonnel захищений від програм (Cloudflare).
 
 1. Отримайте `api_id` і `api_hash` на https://my.telegram.org → API development tools.
 2. Увійдіть один раз: `node scripts/login.mjs` (номер, код з Telegram, пароль 2FA). Сесія збережеться у `.env` (не потрапляє в git) і в GitHub Secrets (`TG_API_ID`, `TG_API_HASH`, `TG_SESSION`).
-3. GitHub Actions (`Collect gifts`) кожні ~30 хвилин оновлює `docs/gifts.json`. Запустити вручну: вкладка **Actions** → **Collect gifts** → **Run workflow**. Локально: `node --env-file=.env scripts/collect.mjs`.
+3. GitHub Actions (`Collect gifts`) кожні ~10 хвилин (GitHub іноді запізнюється) збирає лоти й публікує сайт разом із даними прямо в GitHub Pages — у git дані не потрапляють, тож історія не розростається. Стан між запусками (попередній список для сповіщень, результати перевірки на монохром) зберігається в кеші Actions. Запустити вручну: вкладка **Actions** → **Collect gifts** → **Run workflow**. Локально: `node --env-file=.env scripts/collect.mjs`.
 
 Сесія дає повний доступ до акаунта Telegram — краще використовувати окремий акаунт. Якщо сесія витекла: Telegram → Налаштування → Пристрої → завершіть цей сеанс, і запустіть `login.mjs` знову.
 
@@ -29,18 +33,18 @@ test/                    тести (node --test)
 
 Поки не вибрано жодного фільтра, застосунок подарунків не показує.
 
-Збирач лише читає дані: у `scripts/collect.mjs` дозволені тільки методи `payments.getStarGifts` і `payments.getResaleStarGifts`, тож з акаунта нічого не купується.
+Збирач лише читає дані: у `scripts/collect.mjs` дозволені тільки методи `payments.getStarGifts`, `payments.getResaleStarGifts` і `messages.requestAppWebView` (відкрити MRKT для входу), тож з акаунта нічого не купується.
 
 ## Купівля
 
-Кнопка з ціною (і «Купити» в картці подарунка) відкриває сторінку подарунка в Telegram (`t.me/nft/...`) з кнопкою купівлі. Покупку підтверджує сам користувач у Telegram; застосунок нічого не купує.
+Кнопка з ціною (і «Купити» в картці подарунка) відкриває лот у Telegram (`t.me/nft/...`, з кнопкою купівлі) або MRKT. Покупку підтверджує сам користувач; застосунок нічого не купує.
 
 ## Сповіщення (як у снайпер-ботах)
 
 1. Додайте токен бота: `node scripts/set-bot-token.mjs` — перевіряє токен у Telegram і зберігає його в GitHub Secrets.
 2. Після наступного запуску збирача в застосунку з'явиться кнопка **🔔 Сповіщати**: вона копіює команду `/alert {...}` з поточними фільтрами й відкриває бота.
 3. Надішліть команду боту. Перша людина, яка напише боту, стає його власником; іншим бот не відповідає.
-4. Кожні ~30 хвилин бот пише про нові лоти (або ті, що подешевшали), які підходять під фільтр. `/alerts` — список, `/stop 2` або `/stop all` — видалити.
+4. Кожні ~10–20 хвилин бот пише про нові лоти (або ті, що подешевшали), які підходять під фільтр. `/alerts` — список, `/stop 2` або `/stop all` — видалити.
 
 Сповіщення зберігаються в `alerts.json` (логіка — `scripts/alerts.mjs`).
 
@@ -67,11 +71,9 @@ curl -X POST http://localhost:3000/api/gifts -H "Content-Type: application/json"
 
 ## Постійна адреса без сервера: GitHub Pages
 
-Папка `docs/` — це готовий сайт, сервер для неї не потрібен. Увесь проєкт лежить у репозиторії `gifts` на GitHub, а Pages публікує `docs/` з гілки `main` (Settings → Pages → Branch: `main`, папка `/docs`).
+Папка `docs/` — це готовий сайт, сервер для неї не потрібен. Pages публікує його з workflow `Collect gifts` (Settings → Pages → Source: GitHub Actions) разом зі свіжими даними (`gifts.json`, `stats.json`, `bot.json`), які в git не зберігаються.
 
 Адреса сайту: `https://<ваш-логін>.github.io/gifts/` — її вставте в BotFather (крок 3 нижче).
-
-`docs/gifts.json` тепер щоразу перезаписує автооновлення, тому редагувати його вручну немає сенсу.
 
 ## Як підключити до Telegram-бота
 

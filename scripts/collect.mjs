@@ -1,4 +1,4 @@
-// Collects collectible gifts listed for resale on Telegram's own market into docs/gifts.json,
+// Collects collectible gifts for sale on Telegram's own market and on MRKT into docs/gifts.json,
 // then lets the bot handle alert commands and notify about new matching listings (scripts/alerts.mjs).
 // Run: node --env-file=.env scripts/collect.mjs  (GitHub Actions passes the same vars as secrets)
 import { TelegramClient, MemoryStorage } from '@mtcute/node';
@@ -6,14 +6,16 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { runAlerts } from './alerts.mjs';
 import { fetchIsMonochrome } from './mono.mjs';
+import { mrktListings, mrktLogin, mrktToGift } from './mrkt.mjs';
 
 // shortcut: only the cheapest listings per collection, so the page stays light; add paging when more is needed.
 const PER_COLLECTION = 50;
 // Monochrome checks (one small picture per gift) are cached in mono-cache.json; new ones get at most this long
 // per run, so a cold cache fills over a couple of runs and those gifts aren't marked monochrome meanwhile.
 const MONO_BUDGET_MS = 4 * 60_000;
-// The owner forbade any purchases from their account, so the client may only call these read methods.
-const READ_ONLY = new Set(['payments.getStarGifts', 'payments.getResaleStarGifts']);
+// The owner forbade any purchases from their account, so the client may only call these methods:
+// two read-only gift lists, and opening the MRKT mini app to log in there (it buys or sends nothing).
+const READ_ONLY = new Set(['payments.getStarGifts', 'payments.getResaleStarGifts', 'messages.requestAppWebView']);
 
 const file = p => new URL(`../${p}`, import.meta.url);
 const readJson = (p, fallback) => existsSync(file(p)) ? JSON.parse(readFileSync(file(p), 'utf8')) : fallback;
@@ -69,40 +71,55 @@ async function main() {
   const { gifts: bases } = await call({ _: 'payments.getStarGifts', hash: 0 });
   const onResale = bases.filter(b => b._ === 'starGift' && Number(String(b.availabilityResale ?? 0)) > 0);
 
-  const raw = [];
+  // Each listing with what the monochrome check needs: the gift's slug and its backdrop colours.
+  const items = [];
   const counts = {};
   for (const base of onResale) {
     const res = await call({ _: 'payments.getResaleStarGifts', giftId: base.id, sortByPrice: true, offset: '', limit: PER_COLLECTION });
     const listed = res.gifts.filter(g => g._ === 'starGiftUnique' && g.resellAmount?.length);
     if (listed.length) counts[listed[0].title] = res.count;
-    raw.push(...listed);
+    for (const g of listed) items.push({ gift: toGift(g), slug: g.slug, center: backdropOf(g)?.centerColor, edge: backdropOf(g)?.edgeColor });
+  }
+  if (!items.length) throw new Error('No gifts collected — keeping the previous gifts.json');
+
+  // MRKT is a bonus: if it is down or changed its API, the Telegram listings still get published.
+  try {
+    const token = await mrktLogin(client, call);
+    let found = 0;
+    for (const collection of Object.keys(counts)) {
+      for (const m of await mrktListings(token, collection)) {
+        items.push({ gift: mrktToGift(m), slug: m.name, center: m.backdropColorsCenterColor, edge: m.backdropColorsEdgeColor });
+        found++;
+      }
+    }
+    console.log(`MRKT: ${found} gifts`);
+  } catch (e) {
+    console.error(`MRKT skipped: ${e.message}`);
   }
   await client.destroy();
-  if (!raw.length) throw new Error('No gifts collected — keeping the previous gifts.json');
 
   const mono = readJson('mono-cache.json', {});
-  const todo = raw.filter(g => mono[g.slug] === undefined && backdropOf(g));
+  const todo = items.filter(i => mono[i.slug] === undefined && i.center != null);
   const until = Date.now() + MONO_BUDGET_MS;
   let next = 0;
   await Promise.all(Array.from({ length: 8 }, async () => {
     while (next < todo.length && Date.now() < until) {
-      const g = todo[next++];
-      const { centerColor, edgeColor } = backdropOf(g);
+      const i = todo[next++];
       // One unreadable picture only costs that gift its monochrome mark; it is retried next run.
-      try { mono[g.slug] = await fetchIsMonochrome(g.slug, centerColor, edgeColor); } catch (e) { console.error(`Mono ${g.slug}: ${e.message}`); }
+      try { mono[i.slug] = await fetchIsMonochrome(i.slug, i.center, i.edge); } catch (e) { console.error(`Mono ${i.slug}: ${e.message}`); }
     }
   }));
   // Keep only gifts still on sale, so the cache doesn't grow forever.
-  writeJson('mono-cache.json', Object.fromEntries(raw.filter(g => g.slug in mono).map(g => [g.slug, mono[g.slug]])));
+  writeJson('mono-cache.json', Object.fromEntries(items.filter(i => i.slug in mono).map(i => [i.slug, mono[i.slug]])));
   console.log(`Monochrome check: ${Math.min(next, todo.length)} new of ${todo.length} unchecked`);
-  const out = raw.map(g => toGift(g, mono[g.slug]));
+  const out = items.map(i => ({ ...i.gift, is_monochrome: mono[i.slug] === true }));
 
   // Without the previous run's list (first run, lost cache) everything would look new and flood the alerts,
   // so that run only sets the baseline.
   const prev = readJson('docs/gifts.json', null) ?? out;
   writeJson('docs/gifts.json', out);
   writeJson('docs/stats.json', counts);
-  console.log(`Saved ${out.length} gifts from ${onResale.length} collections`);
+  console.log(`Saved ${out.length} gifts (${onResale.length} collections)`);
 
   if (process.env.TG_BOT_TOKEN) {
     // A broken bot token must not stop the fresh gifts from being published.
