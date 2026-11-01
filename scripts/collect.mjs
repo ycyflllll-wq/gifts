@@ -75,7 +75,7 @@ async function main() {
     if (listed.length) counts[listed[0].name] = res.count;
     out.push(...listed);
   }
-  await client.close();
+  await client.destroy();
   if (!out.length) throw new Error('No gifts collected — keeping the previous gifts.json');
 
   const prev = readJson('docs/gifts.json', []);

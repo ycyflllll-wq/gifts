@@ -46,9 +46,9 @@ try {
   process.exit(1);
 }
 const session = await client.exportSession();
-await client.close();
 rl.close();
 
+// Save first: a hiccup while disconnecting must not throw away a fresh login.
 const secrets = { TG_API_ID: String(apiId), TG_API_HASH: apiHash, TG_SESSION: session };
 writeFileSync('.env', Object.entries(secrets).map(([k, v]) => `${k}=${v}`).join('\n') + '\n');
 
@@ -62,3 +62,4 @@ for (const [name, value] of Object.entries(secrets)) {
   }
 }
 console.log(`✓ Увійшли як ${user.displayName}. Сесію збережено у .env і в GitHub Secrets. Можете закрити цю вкладку.`);
+await client.destroy();
