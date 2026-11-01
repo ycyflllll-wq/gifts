@@ -4,6 +4,7 @@ import { TelegramClient, MemoryStorage } from '@mtcute/node';
 import { createInterface } from 'node:readline/promises';
 import { existsSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import QRCode from 'qrcode';
 import { normalizePhone } from './phone.mjs';
 
 const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -22,12 +23,20 @@ if (!Number.isInteger(apiId) || !/^[0-9a-f]{32}$/i.test(apiHash)) {
   process.exit(1);
 }
 
+// QR login needs no code at all: the phone's Telegram approves it. Telegram renews the QR every ~30 s.
+async function showQr(url) {
+  console.clear();
+  console.log(await QRCode.toString(url, { type: 'terminal', small: true }));
+  console.log('Telegram на телефоні → Налаштування → Пристрої → «Під\'єднати пристрій» → наведіть камеру на цей QR-код.');
+  console.log('QR-код оновлюється сам кожні ~30 секунд — сканувати можна будь-який.');
+}
+
+const how = await ask('Натисніть Enter, щоб увійти через QR-код (або введіть номер телефону, щоб отримати код): ');
 const client = new TelegramClient({ apiId, apiHash, storage: new MemoryStorage() });
 let user;
 try {
   user = await client.start({
-    phone: async () => normalizePhone(await ask('Номер телефону (+380...): ')),
-    code: () => ask('Код з Telegram: '),
+    ...(how ? { phone: normalizePhone(how), code: () => ask('Код з Telegram: ') } : { qrCodeHandler: showQr }),
     password: () => askHidden('Пароль двоетапної перевірки (символи не відображаються): '),
     invalidCodeCallback: type => console.log(type === 'code' ? 'Невірний код, спробуйте ще раз.' : 'Невірний пароль, спробуйте ще раз.'),
   });
