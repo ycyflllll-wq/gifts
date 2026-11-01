@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Gift Finder</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Inter: the closest free match to Apple's San Francisco, for Android/Windows; Apple devices use SF itself. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body data-view="gifts">
@@ -23,13 +27,13 @@
     <div class="chips gifts-only" role="toolbar" aria-label="Фільтри">
       <button class="chip alert-chip" id="alert" hidden>🔔 Сповіщати</button>
       <button class="chip" id="sort" aria-label="Сортування">↑ Дешевші</button>
+      <button class="chip" data-filter="mono" aria-pressed="false" title="Подарунок того ж кольору, що й фон">Монохромні</button>
+      <button class="chip" data-filter="fewDigits" aria-pressed="false" title="У номері не більше 3 різних цифр, напр. #7777, #1231">≤ 3 цифри</button>
       <button class="chip sheet-chip" data-sheet="names" aria-haspopup="dialog">Колекція</button>
       <button class="chip sheet-chip" data-sheet="models" aria-haspopup="dialog">Модель</button>
       <button class="chip sheet-chip" data-sheet="backdrops" aria-haspopup="dialog">Фон</button>
       <button class="chip sheet-chip" data-sheet="symbols" aria-haspopup="dialog">Символ</button>
       <button class="chip sheet-chip" data-sheet="price" aria-haspopup="dialog">Ціна</button>
-      <button class="chip" data-filter="mono" aria-pressed="false">Монохромні</button>
-      <button class="chip" data-filter="fewDigits" aria-pressed="false">≤ 3 цифри</button>
       <button class="chip reset" id="reset" hidden>Скинути все</button>
     </div>
   </header>

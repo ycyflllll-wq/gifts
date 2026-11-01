@@ -5,9 +5,13 @@ import { TelegramClient, MemoryStorage } from '@mtcute/node';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { runAlerts } from './alerts.mjs';
+import { fetchIsMonochrome } from './mono.mjs';
 
 // shortcut: only the cheapest listings per collection, so the page stays light; add paging when more is needed.
 const PER_COLLECTION = 50;
+// Monochrome checks (one small picture per gift) are cached in mono-cache.json; new ones get at most this long
+// per run, so a cold cache fills over a couple of runs and those gifts aren't marked monochrome meanwhile.
+const MONO_BUDGET_MS = 4 * 60_000;
 // The owner forbade any purchases from their account, so the client may only call these read methods.
 const READ_ONLY = new Set(['payments.getStarGifts', 'payments.getResaleStarGifts']);
 
@@ -16,14 +20,11 @@ const readJson = (p, fallback) => existsSync(file(p)) ? JSON.parse(readFileSync(
 const writeJson = (p, data, pretty) => writeFileSync(file(p), JSON.stringify(data, null, pretty ? 2 : 0) + '\n');
 
 const hex = n => '#' + (n & 0xffffff).toString(16).padStart(6, '0');
-// "Monochrome" = black/white/grey backdrop: its centre colour has almost no saturation.
-const isGray = n => {
-  const [r, g, b] = [n >> 16 & 255, n >> 8 & 255, n & 255];
-  return Math.max(r, g, b) - Math.min(r, g, b) < 24;
-};
 const rarity = r => !r ? undefined : r._ === 'starGiftAttributeRarity' ? `${r.permille / 10}%` : r._.replace('starGiftAttributeRarity', '');
+const backdropOf = g => g.attributes.find(a => a._ === 'starGiftAttributeBackdrop');
 
-export function toGift(g) {
+// isMono: result of the picture check in scripts/mono.mjs, if it has been done.
+export function toGift(g, isMono) {
   const attr = type => g.attributes.find(a => a._ === type);
   const model = attr('starGiftAttributeModel');
   const backdrop = attr('starGiftAttributeBackdrop');
@@ -41,7 +42,7 @@ export function toGift(g) {
     symbol_rarity: rarity(symbol?.rarity),
     backdrop_colors: backdrop && [hex(backdrop.centerColor), hex(backdrop.edgeColor)],
     ...(ton ? { price: Number(String(ton.amount)) / 1e9, currency: 'TON' } : { price: Number(String(stars?.amount ?? 0)), currency: 'XTR' }),
-    is_monochrome: backdrop ? isGray(backdrop.centerColor) : false,
+    is_monochrome: isMono === true,
     market: 'Telegram',
     image: `https://nft.fragment.com/gift/${g.slug.toLowerCase()}.webp`,
     url: `https://t.me/nft/${g.slug}`,
@@ -68,16 +69,33 @@ async function main() {
   const { gifts: bases } = await call({ _: 'payments.getStarGifts', hash: 0 });
   const onResale = bases.filter(b => b._ === 'starGift' && Number(String(b.availabilityResale ?? 0)) > 0);
 
-  const out = [];
+  const raw = [];
   const counts = {};
   for (const base of onResale) {
     const res = await call({ _: 'payments.getResaleStarGifts', giftId: base.id, sortByPrice: true, offset: '', limit: PER_COLLECTION });
-    const listed = res.gifts.filter(g => g._ === 'starGiftUnique' && g.resellAmount?.length).map(toGift);
-    if (listed.length) counts[listed[0].name] = res.count;
-    out.push(...listed);
+    const listed = res.gifts.filter(g => g._ === 'starGiftUnique' && g.resellAmount?.length);
+    if (listed.length) counts[listed[0].title] = res.count;
+    raw.push(...listed);
   }
   await client.destroy();
-  if (!out.length) throw new Error('No gifts collected — keeping the previous gifts.json');
+  if (!raw.length) throw new Error('No gifts collected — keeping the previous gifts.json');
+
+  const mono = readJson('mono-cache.json', {});
+  const todo = raw.filter(g => mono[g.slug] === undefined && backdropOf(g));
+  const until = Date.now() + MONO_BUDGET_MS;
+  let next = 0;
+  await Promise.all(Array.from({ length: 8 }, async () => {
+    while (next < todo.length && Date.now() < until) {
+      const g = todo[next++];
+      const { centerColor, edgeColor } = backdropOf(g);
+      // One unreadable picture only costs that gift its monochrome mark; it is retried next run.
+      try { mono[g.slug] = await fetchIsMonochrome(g.slug, centerColor, edgeColor); } catch (e) { console.error(`Mono ${g.slug}: ${e.message}`); }
+    }
+  }));
+  // Keep only gifts still on sale, so the cache doesn't grow forever.
+  writeJson('mono-cache.json', Object.fromEntries(raw.filter(g => g.slug in mono).map(g => [g.slug, mono[g.slug]])));
+  console.log(`Monochrome check: ${Math.min(next, todo.length)} new of ${todo.length} unchecked`);
+  const out = raw.map(g => toGift(g, mono[g.slug]));
 
   const prev = readJson('docs/gifts.json', []);
   writeJson('docs/gifts.json', out);

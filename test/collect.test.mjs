@@ -12,7 +12,7 @@ const unique = (resellAmount, centerColor = 0x4d5254) => ({
 });
 
 test('toGift maps a Telegram resale listing', () => {
-  assert.deepStrictEqual(toGift(unique([{ _: 'starsAmount', amount: 900n }, { _: 'starsTonAmount', amount: 4500000000n }])), {
+  assert.deepStrictEqual(toGift(unique([{ _: 'starsAmount', amount: 900n }, { _: 'starsTonAmount', amount: 4500000000n }]), true), {
     id: 3133, name: 'Lol Pop', model: 'Mandarin', backdrop: 'Onyx Black', symbol: 'Kudu Totem',
     model_rarity: '1.5%', backdrop_rarity: 'Rare', symbol_rarity: undefined,
     backdrop_colors: ['#4d5254', '#313638'], price: 4.5, currency: 'TON', is_monochrome: true, market: 'Telegram',
@@ -20,7 +20,7 @@ test('toGift maps a Telegram resale listing', () => {
   });
 });
 
-test('toGift falls back to Stars and detects colourful backdrops', () => {
+test("toGift falls back to Stars; not monochrome until checked", () => {
   const g = toGift(unique([{ _: 'starsAmount', amount: 900n }], 0xbe6f54));
   assert.strictEqual(g.price, 900);
   assert.strictEqual(g.currency, 'XTR');

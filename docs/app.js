@@ -72,10 +72,13 @@ function showMore() {
 }
 
 function render() {
-  list = filterGifts(gifts, state).sort(SORTS[sortIndex].cmp);
+  // Nothing is listed until at least one filter is chosen: the whole market is too much to scroll.
+  const filtered = anyFilter();
+  list = filtered ? filterGifts(gifts, state).sort(SORTS[sortIndex].cmp) : [];
   shown = 0;
-  $('#count').textContent = `${fmt(list.length)} з ${fmt(gifts.length)}`;
-  $('#grid').innerHTML = list.length ? '' : '<p class="empty">Нічого не знайдено</p>';
+  $('#count').textContent = filtered ? `${fmt(list.length)} з ${fmt(gifts.length)}` : `${fmt(gifts.length)} у продажу`;
+  $('#grid').innerHTML = !filtered ? '<p class="empty">Виберіть фільтр або колекцію, щоб побачити подарунки ☝️</p>'
+    : list.length ? '' : '<p class="empty">Нічого не знайдено</p>';
   showMore();
 
   document.querySelectorAll('[data-sheet]').forEach(chip => {
