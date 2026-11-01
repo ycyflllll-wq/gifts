@@ -306,7 +306,8 @@ applyTheme();
 tg?.onEvent('themeChanged', applyTheme);
 
 // Static files, so docs/ also works on GitHub Pages without the server.
-const getJson = url => fetch(url).then(r => r.ok ? r.json() : Promise.reject(r.status));
+// no-cache: data changes every ~10 min, so always ask the server whether there is a newer copy.
+const getJson = url => fetch(url, { cache: 'no-cache' }).then(r => r.ok ? r.json() : Promise.reject(r.status));
 getJson('gifts.json')
   .then(data => { gifts = data; render(); })
   .catch(() => { $('#grid').innerHTML = '<p class="empty">Не вдалося завантажити подарунки</p>'; });

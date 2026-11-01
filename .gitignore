@@ -1,3 +1,7 @@
 node_modules/
 .claude/
 .env
+docs/gifts.json
+docs/stats.json
+docs/bot.json
+mono-cache.json

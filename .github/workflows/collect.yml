@@ -1,12 +1,19 @@
 name: Collect gifts
 
+# Collects market listings and publishes the site with them. The data goes straight to GitHub Pages
+# (not into git), so frequent runs don't bloat the repository history.
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/10 * * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['docs/**', 'scripts/**', 'package*.json', '.github/workflows/collect.yml']
 
 permissions:
-  contents: write
+  contents: write # alerts.json
+  pages: write
+  id-token: write
 
 concurrency:
   group: collect
@@ -15,6 +22,9 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,15 +32,34 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # The previous run's gifts (to spot new listings for alerts) and the monochrome checks.
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            docs/gifts.json
+            mono-cache.json
+          key: state-${{ github.run_id }}
+          restore-keys: state-
       - run: node scripts/collect.mjs
         env:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
           TG_SESSION: ${{ secrets.TG_SESSION }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-      - name: Publish if changed
+      - uses: actions/cache/save@v4
+        with:
+          path: |
+            docs/gifts.json
+            mono-cache.json
+          key: state-${{ github.run_id }}
+      - name: Save alerts if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/ $(ls alerts.json mono-cache.json 2>/dev/null)
-          git diff --cached --quiet || (git commit -m "Update gifts from markets" && git push)
+          git add alerts.json
+          git diff --cached --quiet || (git commit -m "Update alerts" && git pull --rebase -q && git push)
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deploy
+        uses: actions/deploy-pages@v4

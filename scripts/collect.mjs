@@ -97,7 +97,9 @@ async function main() {
   console.log(`Monochrome check: ${Math.min(next, todo.length)} new of ${todo.length} unchecked`);
   const out = raw.map(g => toGift(g, mono[g.slug]));
 
-  const prev = readJson('docs/gifts.json', []);
+  // Without the previous run's list (first run, lost cache) everything would look new and flood the alerts,
+  // so that run only sets the baseline.
+  const prev = readJson('docs/gifts.json', null) ?? out;
   writeJson('docs/gifts.json', out);
   writeJson('docs/stats.json', counts);
   console.log(`Saved ${out.length} gifts from ${onResale.length} collections`);
