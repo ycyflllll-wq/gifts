@@ -60,7 +60,8 @@ async function main() {
   });
   const call = req => {
     if (!READ_ONLY.has(req._)) throw new Error(`Blocked ${req._}: this script is read-only`);
-    return client.call(req);
+    // Telegram throttles bursts of resale queries (FLOOD_WAIT ~40 s); waiting it out is fine for a background job.
+    return client.call(req, { floodSleepThreshold: 180_000 });
   };
   await client.start({ session: process.env.TG_SESSION });
 
