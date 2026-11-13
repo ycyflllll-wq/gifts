@@ -58,7 +58,9 @@ test('alertMessages notifies only matching fresh listings', () => {
   assert.deepStrictEqual(alertMessages(store, gifts.filter(g => g.name !== 'Lol Pop')), []);
   const [m] = alertMessages(store, gifts);
   assert.strictEqual(m.chat, OWNER);
-  assert.match(m.text, /🔔 #3 \(Колекція: Lol Pop\)\n\nLol Pop #3133 — 4.5 TON\nhttps:\/\/t.me\/nft\/LolPop-3133/);
+  assert.match(m.text, /🔔 #3 \(Колекція: Lol Pop\)\n\nLol Pop #3133 — 4.5 TON$/);
+  // The link lives in a Buy button that opens the gift's own page.
+  assert.deepStrictEqual(m.buttons, [{ text: '🛒 Lol Pop #3133 · 4.5 TON', url: 'https://t.me/nft/LolPop-3133' }]);
 });
 
 test('parseSavedSearches reads CloudStorage and keeps searches with alerts on', async () => {

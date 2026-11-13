@@ -19,7 +19,9 @@ const HELP = [
 ].join('\n');
 
 const money = g => `${g.price} ${g.currency === 'XTR' ? '⭐' : 'TON'}`;
-const line = g => `${g.name} #${g.id} — ${money(g)}${g.market ? ` (${g.market})` : ''}\n${g.url}`;
+const line = g => `${g.name} #${g.id} — ${money(g)}${g.market ? ` (${g.market})` : ''}`;
+// One tap from the alert to the gift's own page with Telegram's Buy button (or to MRKT). The bot never buys.
+const buyButton = g => ({ text: `🛒 ${g.name} #${g.id} · ${money(g)}`, url: g.url });
 // MRKT listings all share one link, so a listing is told apart by market, collection and number.
 export const key = g => `${g.market}|${g.name}|${g.id}`;
 
@@ -56,7 +58,11 @@ export function alertMessages(store, fresh) {
     if (!hits.length) return [];
     const more = hits.length > MAX_PER_ALERT ? `\n…і ще ${hits.length - MAX_PER_ALERT}` : '';
     const title = a.saved ? '⭐ Збережений пошук' : `#${a.id}`;
-    return [{ chat: a.chat, saved: a.saved, searchId: a.id, text: `🔔 ${title} (${describe(a.filter)})\n\n${hits.slice(0, MAX_PER_ALERT).map(line).join('\n\n')}${more}` }];
+    const shown = hits.slice(0, MAX_PER_ALERT);
+    return [{
+      chat: a.chat, saved: a.saved, searchId: a.id, buttons: shown.map(buyButton),
+      text: `🔔 ${title} (${describe(a.filter)})\n\n${shown.map(line).join('\n')}${more}`,
+    }];
   });
 }
 
@@ -88,7 +94,7 @@ export function applyCommands(store, updates, gifts, searches = []) {
       store.alerts.push({ id, chat, filter });
       const now = filterGifts(gifts, filter);
       const cheapest = now.length ? `\nНайдешевший зараз: ${line(now[0])}` : '';
-      replies.push({ chat, text: `✓ Сповіщення #${id}: ${describe(filter)}\nЗараз підходить лотів: ${now.length}.${cheapest}` });
+      replies.push({ chat, buttons: now.slice(0, 1).map(buyButton), text: `✓ Сповіщення #${id}: ${describe(filter)}\nЗараз підходить лотів: ${now.length}.${cheapest}` });
     } else if (cmd === '/alerts') {
       const mine = store.alerts.filter(a => a.chat === chat).map(a => `#${a.id}: ${describe(a.filter)}`);
       const saved = searches.map(s => `⭐ ${describe(s.filter)}`);
@@ -124,10 +130,10 @@ export async function runAlerts({ token, store, prev, next, searches = [], siteU
   const updates = await api('getUpdates', { offset: store.offset, timeout: 0, allowed_updates: ['message'] });
   replies.push(...applyCommands(store, updates, next, searches));
   for (const r of replies) {
-    // A saved search's message opens the app on that search.
-    const markup = r.saved && siteUrl
-      ? { inline_keyboard: [[{ text: '🔎 Відкрити в Gift Seeker', web_app: { url: `${siteUrl}?search=${encodeURIComponent(r.searchId)}` } }]] }
-      : undefined;
+    // A Buy button per gift; a saved search's message also opens the app on that search.
+    const rows = (r.buttons ?? []).map(b => [b]);
+    if (r.saved && siteUrl) rows.push([{ text: '🔎 Відкрити в Gift Seeker', web_app: { url: `${siteUrl}?search=${encodeURIComponent(r.searchId)}` } }]);
+    const markup = rows.length ? { inline_keyboard: rows } : undefined;
     // One failed message (e.g. the chat blocked the bot) must not lose the saved alerts and offset.
     await api('sendMessage', { chat_id: r.chat, text: r.text, link_preview_options: { is_disabled: true }, reply_markup: markup })
       .catch(e => console.error(e.message));
