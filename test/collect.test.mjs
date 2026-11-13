@@ -26,3 +26,14 @@ test("toGift falls back to Stars; not monochrome until checked", () => {
   assert.strictEqual(g.currency, 'XTR');
   assert.strictEqual(g.is_monochrome, false);
 });
+
+test('stampSeen: first-seen times, a cold start is not "new", sold listings are dropped', async () => {
+  const { stampSeen } = await import('../scripts/collect.mjs');
+  const a = { market: 'Telegram', name: 'Lol Pop', id: 1 }, b = { ...a, id: 2 };
+  const cold = stampSeen([a, b], {}, 100);
+  assert.deepStrictEqual([a.seen, b.seen], [0, 0]);
+  const c = { ...a, id: 3 };
+  const warm = stampSeen([a, c], cold, 200);
+  assert.deepStrictEqual([a.seen, c.seen], [0, 200]);
+  assert.deepStrictEqual(Object.keys(warm), ['Telegram|Lol Pop|1', 'Telegram|Lol Pop|3']);
+});

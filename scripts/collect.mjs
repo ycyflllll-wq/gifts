@@ -4,7 +4,7 @@
 import { TelegramClient, MemoryStorage } from '@mtcute/node';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { runAlerts } from './alerts.mjs';
+import { key, parseSavedSearches, runAlerts } from './alerts.mjs';
 import { fetchIsMonochrome } from './mono.mjs';
 import { mrktListings, mrktLogin, mrktToGift } from './mrkt.mjs';
 
@@ -14,8 +14,10 @@ const PER_COLLECTION = 50;
 // per run, so a cold cache fills over a couple of runs and those gifts aren't marked monochrome meanwhile.
 const MONO_BUDGET_MS = 4 * 60_000;
 // The owner forbade any purchases from their account, so the client may only call these methods:
-// two read-only gift lists, and opening the MRKT mini app to log in there (it buys or sends nothing).
-const READ_ONLY = new Set(['payments.getStarGifts', 'payments.getResaleStarGifts', 'messages.requestAppWebView']);
+// two read-only gift lists, opening the MRKT mini app to log in there (it buys or sends nothing),
+// and reading (never writing) the searches the owner saved in our app's CloudStorage.
+const READ_ONLY = new Set(['payments.getStarGifts', 'payments.getResaleStarGifts', 'messages.requestAppWebView', 'bots.invokeWebViewCustomMethod']);
+const READ_ONLY_CUSTOM = new Set(['getStorageValues']);
 
 const file = p => new URL(`../${p}`, import.meta.url);
 const readJson = (p, fallback) => existsSync(file(p)) ? JSON.parse(readFileSync(file(p), 'utf8')) : fallback;
@@ -24,6 +26,15 @@ const writeJson = (p, data, pretty) => writeFileSync(file(p), JSON.stringify(dat
 const hex = n => '#' + (n & 0xffffff).toString(16).padStart(6, '0');
 const rarity = r => !r ? undefined : r._ === 'starGiftAttributeRarity' ? `${r.permille / 10}%` : r._.replace('starGiftAttributeRarity', '');
 const backdropOf = g => g.attributes.find(a => a._ === 'starGiftAttributeBackdrop');
+
+// Sets g.seen = when each listing was first seen (unix seconds) and returns the updated map, keeping only
+// listings still on sale. A cold map (first run, lost cache) gives 0: nothing is "new" just because the cache was empty.
+export function stampSeen(gifts, seen, now) {
+  const cold = !Object.keys(seen).length;
+  const next = {};
+  for (const g of gifts) g.seen = next[key(g)] = seen[key(g)] ?? (cold ? 0 : now);
+  return next;
+}
 
 // isMono: result of the picture check in scripts/mono.mjs, if it has been done.
 export function toGift(g, isMono) {
@@ -63,6 +74,9 @@ async function main() {
   });
   const call = req => {
     if (!READ_ONLY.has(req._)) throw new Error(`Blocked ${req._}: this script is read-only`);
+    if (req._ === 'bots.invokeWebViewCustomMethod' && !READ_ONLY_CUSTOM.has(req.customMethod)) {
+      throw new Error(`Blocked ${req.customMethod}: this script is read-only`);
+    }
     // Telegram throttles bursts of resale queries (FLOOD_WAIT ~40 s); waiting it out is fine for a background job.
     return client.call(req, { floodSleepThreshold: 180_000 });
   };
@@ -96,6 +110,23 @@ async function main() {
   } catch (e) {
     console.error(`MRKT skipped: ${e.message}`);
   }
+
+  // The owner's saved searches live in our bot's CloudStorage, readable from the owner's own account.
+  let searches = [];
+  if (process.env.TG_BOT_TOKEN) {
+    try {
+      const me = await (await fetch(`https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/getMe`)).json();
+      const bot = await client.resolveUser(me.result.username);
+      const res = await call({
+        _: 'bots.invokeWebViewCustomMethod', bot, customMethod: 'getStorageValues',
+        params: { _: 'dataJSON', data: JSON.stringify({ keys: ['searches'] }) },
+      });
+      searches = parseSavedSearches(res.data);
+      console.log(`Saved searches with alerts: ${searches.length}`);
+    } catch (e) {
+      console.error(`Saved searches skipped: ${e.message}`);
+    }
+  }
   await client.destroy();
 
   const mono = readJson('mono-cache.json', {});
@@ -117,6 +148,7 @@ async function main() {
   // Without the previous run's list (first run, lost cache) everything would look new and flood the alerts,
   // so that run only sets the baseline.
   const prev = readJson('docs/gifts.json', null) ?? out;
+  writeJson('seen.json', stampSeen(out, readJson('seen.json', {}), Math.floor(Date.now() / 1000)));
   writeJson('docs/gifts.json', out);
   writeJson('docs/stats.json', counts);
   console.log(`Saved ${out.length} gifts (${onResale.length} collections)`);
@@ -125,7 +157,7 @@ async function main() {
     // A broken bot token must not stop the fresh gifts from being published.
     try {
       const store = readJson('alerts.json', { offset: 0, owner: null, alerts: [] });
-      const username = await runAlerts({ token: process.env.TG_BOT_TOKEN, store, prev, next: out });
+      const username = await runAlerts({ token: process.env.TG_BOT_TOKEN, store, prev, next: out, searches, siteUrl: process.env.SITE_URL });
       writeJson('alerts.json', store, true);
       writeJson('docs/bot.json', { username });
     } catch (e) {

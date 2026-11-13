@@ -1,11 +1,11 @@
 /* Marketplace-style palette; follows Telegram's light/dark choice via data-theme. */
 :root {
   --bg: #f2f3f7; --card: #ffffff; --card-2: #eceef3; --line: #e1e4ea;
-  --text: #0f1115; --hint: #6b7385; --accent: #2f7cf6; --accent-text: #ffffff;
+  --text: #0f1115; --hint: #6b7385; --accent: #2f7cf6; --accent-text: #ffffff; --new: #1fa855;
 }
 [data-theme="dark"] {
   --bg: #0f1115; --card: #1a1d24; --card-2: #242833; --line: #2a2f3a;
-  --text: #ffffff; --hint: #8b93a7; --accent: #3e88f7; --accent-text: #ffffff;
+  --text: #ffffff; --hint: #8b93a7; --accent: #3e88f7; --accent-text: #ffffff; --new: #2bbd67;
 }
 
 * { box-sizing: border-box; }
@@ -30,15 +30,22 @@ button, input, textarea { font: inherit; color: inherit; letter-spacing: inherit
   padding: 12px 16px 10px;
   background: var(--bg);
 }
-.title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.title-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; margin-bottom: 10px; }
 .count { color: var(--hint); font-size: 13px; }
 .tabs { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--card); }
 .tabs button {
-  padding: 7px 12px; border: 0; border-radius: 9px;
+  padding: 7px 10px; border: 0; border-radius: 9px;
   background: none; color: var(--hint); font-weight: 600; cursor: pointer;
 }
 .tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-text); }
-[data-view="collections"] .gifts-only, [data-view="gifts"] #collections { display: none; }
+.tab-badge {
+  display: inline-block; min-width: 18px; padding: 1px 5px; border-radius: 999px;
+  background: var(--new); color: #fff; font-size: 11px; text-align: center;
+}
+.tab-badge[hidden] { display: none; }
+body:not([data-view="gifts"]) .gifts-only,
+body:not([data-view="collections"]) #collections,
+body:not([data-view="saved"]) #saved { display: none; }
 
 .search {
   display: flex; align-items: center; gap: 8px;
@@ -62,7 +69,7 @@ button, input, textarea { font: inherit; color: inherit; letter-spacing: inherit
 .chip.on, .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
 .chip.on::after { color: inherit; }
 .chip.reset { background: none; color: var(--accent); }
-.chip.alert-chip { background: var(--card-2); color: var(--accent); font-weight: 600; }
+.chip.save-chip { background: var(--card-2); color: var(--accent); font-weight: 600; }
 
 /* Grid of cards */
 .grid {
@@ -91,6 +98,11 @@ button, input, textarea { font: inherit; color: inherit; letter-spacing: inherit
   position: absolute; top: 6px; left: 6px;
   padding: 2px 7px; border-radius: 999px;
   background: rgb(0 0 0 / 0.45); color: #fff; font-size: 11px;
+}
+.new-tag {
+  position: absolute; top: 6px; right: 6px;
+  padding: 2px 7px; border-radius: 999px;
+  background: var(--new); color: #fff; font-size: 11px; font-weight: 700;
 }
 .info { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 0 2px; }
 .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -172,3 +184,18 @@ a.primary { display: flex; align-items: center; justify-content: center; gap: 6p
   font: 13px/1.4 ui-monospace, Consolas, monospace;
 }
 .hint { color: var(--hint); font-size: 13px; text-align: center; }
+
+/* Saved searches */
+.saved-row { display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 12px; border-radius: 14px; background: var(--card); }
+.saved-open { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 6px 0; border: 0; background: none; text-align: left; cursor: pointer; }
+.saved-open .opt-name { white-space: normal; }
+.new-badge { flex: none; padding: 3px 8px; border-radius: 999px; background: var(--new); color: #fff; font-size: 12px; font-weight: 700; }
+.icon-btn { flex: none; width: 36px; height: 36px; border: 0; border-radius: 10px; background: none; cursor: pointer; font-size: 16px; }
+.icon-btn[aria-pressed="false"] { opacity: 0.6; }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 10;
+  max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 12px;
+  background: var(--text); color: var(--bg); font-weight: 500; text-align: center;
+}
+.toast[hidden] { display: none; }

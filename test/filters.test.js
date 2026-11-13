@@ -28,3 +28,9 @@ test('attribute and price filters', () => {
   assert.strictEqual(ids({ priceMin: 0 }).length, gifts.length);
   assert.deepStrictEqual(ids({ priceMax: 4, fewDigits: true }), [7070]);
 });
+
+test('describe summarises a filter', () => {
+  const { describe } = require('../docs/filters.js');
+  assert.strictEqual(describe({ names: ['Plush Pepe'], markets: ['MRKT'], priceMax: 100, mono: true }), 'Колекція: Plush Pepe; Маркет: MRKT; Ціна: 0–100; Монохромні');
+  assert.strictEqual(describe({ query: '  pepe ' }), 'Пошук: pepe');
+});

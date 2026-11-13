@@ -17,7 +17,12 @@ let shown = 0;
 let openSheet = null;
 let sortIndex = 0;
 let counts = {}; // total listings per collection, from stats.json
-let botUsername = null; // from bot.json, written once the bot token is set
+// Saved searches, like on OLX: kept in Telegram CloudStorage so they follow the user across devices and the
+// collector can read them to send bot alerts; outside Telegram they fall back to this browser's localStorage.
+let searches = [];
+let highlight = null; // { filter, since }: while that search is shown, gifts first seen after `since` are "new"
+const cloud = tg?.initData && tg.isVersionAtLeast('6.9') ? tg.CloudStorage : null;
+const nowSec = () => Math.floor(Date.now() / 1000);
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
@@ -32,6 +37,9 @@ const giftImg = (g, cls, lazy = true) => `<span class="${cls} thumb" style="${sw
 
 const isActive = key => key === 'price' ? state.priceMin != null || state.priceMax != null : state[key].length > 0;
 const anyFilter = () => state.mono || state.fewDigits || state.query.trim() || Object.keys(SHEETS).some(isActive);
+// Only the filters that are set, in a fixed key order, so two equal searches stringify the same.
+const currentFilter = () => Object.fromEntries(Object.entries(state).filter(([, v]) => Array.isArray(v) ? v.length : v !== null && v !== false && v !== ''));
+const filterKey = f => JSON.stringify(f);
 
 function chipLabel(key) {
   if (key === 'price') return isActive(key) ? `Ціна · ${state.priceMin ?? 0}–${state.priceMax ?? '∞'}` : 'Ціна';
@@ -48,12 +56,15 @@ function applyTheme() {
   }
 }
 
+let newSince = null; // set by render() while a saved search with new gifts is shown
+
 const card = (g, i) => `
   <article class="card">
     <button class="card-open" data-i="${i}" aria-label="${esc(`${g.name} #${g.id}`)}">
       <span class="pic thumb" style="${swatch(g.backdrop_colors)}">
         <img src="${esc(g.image)}" alt="" loading="lazy" onerror="this.remove()">
         ${g.market ? `<span class="market">${esc(g.market)}</span>` : ''}
+        ${newSince != null && g.seen > newSince ? '<span class="new-tag">НОВЕ</span>' : ''}
       </span>
       <span class="info"><span class="name">${esc(g.name)}</span><span class="num">#${esc(g.id)}</span></span>
     </button>
@@ -74,7 +85,10 @@ function showMore() {
 function render() {
   // Nothing is listed until at least one filter is chosen: the whole market is too much to scroll.
   const filtered = anyFilter();
-  list = filtered ? filterGifts(gifts, state).sort(SORTS[sortIndex].cmp) : [];
+  newSince = highlight && highlight.filter === filterKey(currentFilter()) ? highlight.since : null;
+  const isNew = g => newSince != null && g.seen > newSince;
+  // New gifts of an opened saved search come first, like fresh ads on OLX.
+  list = filtered ? filterGifts(gifts, state).sort((a, b) => isNew(b) - isNew(a) || SORTS[sortIndex].cmp(a, b)) : [];
   shown = 0;
   $('#count').textContent = filtered ? `${fmt(list.length)} з ${fmt(gifts.length)}` : `${fmt(gifts.length)} у продажу`;
   $('#grid').innerHTML = !filtered ? '<p class="empty">Виберіть фільтр або колекцію, щоб побачити подарунки ☝️</p>'
@@ -87,9 +101,10 @@ function render() {
   });
   $('#sort').textContent = SORTS[sortIndex].label;
   $('#reset').hidden = !anyFilter();
-  $('#alert').hidden = !(botUsername && anyFilter());
+  $('#save').hidden = !anyFilter() || searches.some(s => filterKey(s.filter) === filterKey(currentFilter()));
   $('#sheet-done').textContent = `Показати ${list.length} ${plural(list.length)}`;
   renderCollections();
+  renderSaved();
 
   if (anyFilter() && list.length) {
     tg?.MainButton.setText(`Показати ${list.length} ${plural(list.length)}`).show();
@@ -165,7 +180,82 @@ function setView(view) {
   document.body.dataset.view = view;
   document.querySelectorAll('[data-view]').forEach(tab => tab.setAttribute('aria-selected', tab.dataset.view === view));
   renderCollections();
+  renderSaved();
   scrollTo(0, 0);
+}
+
+function toast(text) {
+  const el = $('#toast');
+  el.textContent = text;
+  el.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { el.hidden = true; }, 2600);
+}
+
+function loadSearches() {
+  const parse = v => { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } };
+  return new Promise(resolve => {
+    if (cloud) return cloud.getItem('searches', (err, v) => resolve(err ? [] : parse(v)));
+    try { resolve(parse(localStorage.getItem('searches'))); } catch { resolve([]); }
+  });
+}
+
+function storeSearches() {
+  const value = JSON.stringify(searches);
+  if (cloud) cloud.setItem('searches', value, err => { if (err) toast(`Не вдалося зберегти: ${err}`); });
+  else try { localStorage.setItem('searches', value); } catch { /* private mode: kept until the page closes */ }
+}
+
+function saveSearch() {
+  const filter = currentFilter();
+  const next = [...searches, { id: Date.now().toString(36), filter, viewedAt: nowSec(), notify: true }];
+  // CloudStorage holds at most 4096 characters per key.
+  if (JSON.stringify(next).length > 4096) return toast('Забагато збережених пошуків — видаліть якийсь у «Збережених»');
+  searches = next;
+  storeSearches();
+  tg?.HapticFeedback.notificationOccurred('success');
+  toast('⭐ Пошук збережено — бот напише про нові лоти');
+  render();
+}
+
+function syncControls() {
+  document.querySelectorAll('[data-filter]').forEach(chip => chip.setAttribute('aria-pressed', state[chip.dataset.filter]));
+  $('#search').value = state.query;
+}
+
+function openSearch(id) {
+  const s = searches.find(x => x.id === id);
+  if (!s) return;
+  Object.assign(state, EMPTY(), structuredClone(s.filter));
+  syncControls();
+  highlight = { filter: filterKey(currentFilter()), since: s.viewedAt };
+  s.viewedAt = nowSec(); // what's shown now counts as seen next time
+  storeSearches();
+  setView('gifts');
+  render();
+}
+
+const freshCount = s => filterGifts(gifts, s.filter).filter(g => g.seen > s.viewedAt).length;
+
+// "Saved" tab: each search with how many gifts match now and how many appeared since it was last opened.
+function renderSaved() {
+  const total = searches.reduce((sum, s) => sum + freshCount(s), 0);
+  $('#saved-badge').textContent = total;
+  $('#saved-badge').hidden = !total;
+  if (document.body.dataset.view !== 'saved') return;
+  $('#saved').innerHTML = searches.map(s => {
+    const fresh = freshCount(s);
+    const notify = s.notify !== false;
+    return `
+    <div class="saved-row">
+      <button class="saved-open" data-id="${esc(s.id)}">
+        <span class="opt-name">${esc(describe(s.filter))}<small>${fmt(filterGifts(gifts, s.filter).length)} у продажу</small></span>
+        ${fresh ? `<span class="new-badge">+${fmt(fresh)} нових</span>` : ''}
+      </button>
+      <button class="icon-btn" data-notify="${esc(s.id)}" aria-pressed="${notify}" aria-label="Сповіщення в боті" title="Сповіщення в боті">${notify ? '🔔' : '🔕'}</button>
+      <button class="icon-btn" data-delete="${esc(s.id)}" aria-label="Видалити пошук" title="Видалити">✕</button>
+    </div>`;
+  }).join('') || '<p class="empty">Збережених пошуків немає. Виберіть фільтри й натисніть «⭐ Зберегти пошук».</p>';
 }
 
 function showGift(g) {
@@ -180,28 +270,6 @@ function showGift(g) {
     <p class="hint">${g.market === 'MRKT'
       ? `Відкриється MRKT — знайдіть там ${esc(g.name)} #${esc(g.id)}. Покупку ви підтверджуєте самі.`
       : 'Покупка відкриється в Telegram — ви підтверджуєте її самі.'}</p>`;
-  showDialog($('#gift'));
-}
-
-// The bot reads alerts from chat commands; only the filters that are set go in, to keep it short.
-function alertCommand() {
-  const set = Object.entries(state).filter(([, v]) => Array.isArray(v) ? v.length : v !== null && v !== false && v !== '');
-  return `/alert ${JSON.stringify(Object.fromEntries(set))}`;
-}
-
-function showAlertHelp() {
-  const cmd = alertCommand();
-  navigator.clipboard?.writeText(cmd).catch(() => {}); // the command is also shown for manual copying
-  $('#gift-body').innerHTML = `
-    <h2>🔔 Сповіщення</h2>
-    <p>Бот напише вам, коли на маркетах з'являться нові подарунки за цими фільтрами.</p>
-    <ol class="steps">
-      <li>Команду вже скопійовано. Якщо ні — скопіюйте її нижче.</li>
-      <li>Відкрийте бота, вставте команду й надішліть.</li>
-      <li>Бот підтвердить протягом ~30 хвилин.</li>
-    </ol>
-    <textarea class="cmd" readonly rows="3" aria-label="Команда для бота">${esc(cmd)}</textarea>
-    <a class="primary" href="https://t.me/${esc(botUsername)}" target="_blank" rel="noopener">Відкрити бота</a>`;
   showDialog($('#gift'));
 }
 
@@ -256,7 +324,25 @@ $('#sort').addEventListener('click', () => {
   render();
 });
 
-$('#alert').addEventListener('click', showAlertHelp);
+$('#save').addEventListener('click', saveSearch);
+
+$('#saved').addEventListener('click', e => {
+  const open = e.target.closest('[data-id]');
+  const notify = e.target.closest('[data-notify]');
+  const del = e.target.closest('[data-delete]');
+  if (open) return openSearch(open.dataset.id);
+  if (notify) {
+    const s = searches.find(x => x.id === notify.dataset.notify);
+    s.notify = s.notify === false;
+    toast(s.notify ? '🔔 Бот писатиме про нові лоти' : '🔕 Сповіщення вимкнено');
+  }
+  if (del) searches = searches.filter(x => x.id !== del.dataset.delete);
+  if (notify || del) {
+    tg?.HapticFeedback.selectionChanged();
+    storeSearches();
+    render();
+  }
+});
 
 document.querySelectorAll('[data-view]').forEach(tab => tab.addEventListener('click', () => setView(tab.dataset.view)));
 
@@ -310,9 +396,14 @@ tg?.onEvent('themeChanged', applyTheme);
 // Static files, so docs/ also works on GitHub Pages without the server.
 // no-cache: data changes every ~10 min, so always ask the server whether there is a newer copy.
 const getJson = url => fetch(url, { cache: 'no-cache' }).then(r => r.ok ? r.json() : Promise.reject(r.status));
-getJson('gifts.json')
-  .then(data => { gifts = data; render(); })
+Promise.all([getJson('gifts.json'), loadSearches()])
+  .then(([data, saved]) => {
+    gifts = data;
+    searches = saved;
+    // A bot alert's "Open" button links here with ?search=<id>: open that search with its new gifts.
+    const id = new URLSearchParams(location.search).get('search');
+    id && searches.some(s => s.id === id) ? openSearch(id) : render();
+  })
   .catch(() => { $('#grid').innerHTML = '<p class="empty">Не вдалося завантажити подарунки</p>'; });
-// Optional extras written by the collector; the app works without them.
+// Optional extra written by the collector; the app works without it.
 getJson('stats.json').then(data => { counts = data; renderCollections(); }).catch(() => {});
-getJson('bot.json').then(data => { botUsername = data.username; if (gifts.length) render(); }).catch(() => {});

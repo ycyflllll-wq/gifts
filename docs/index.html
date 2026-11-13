@@ -17,6 +17,7 @@
       <div class="tabs" role="tablist">
         <button role="tab" data-view="gifts" aria-selected="true">Подарунки</button>
         <button role="tab" data-view="collections" aria-selected="false">Колекції</button>
+        <button role="tab" data-view="saved" aria-selected="false">Збережені <span id="saved-badge" class="tab-badge" hidden></span></button>
       </div>
       <span id="count" class="count gifts-only" aria-live="polite"></span>
     </div>
@@ -25,7 +26,7 @@
       <input id="search" type="search" placeholder="Пошук за назвою або #номером" aria-label="Пошук за назвою або номером">
     </label>
     <div class="chips gifts-only" role="toolbar" aria-label="Фільтри">
-      <button class="chip alert-chip" id="alert" hidden>🔔 Сповіщати</button>
+      <button class="chip save-chip" id="save" hidden>⭐ Зберегти пошук</button>
       <button class="chip" id="sort" aria-label="Сортування">↑ Дешевші</button>
       <button class="chip" data-filter="mono" aria-pressed="false" title="Подарунок того ж кольору, що й фон">Монохромні</button>
       <button class="chip" data-filter="fewDigits" aria-pressed="false" title="У номері не більше 3 різних цифр, напр. #7777, #1231">≤ 3 цифри</button>
@@ -42,6 +43,8 @@
   <main id="grid" class="grid gifts-only"></main>
   <div id="more" class="gifts-only" aria-hidden="true"></div>
   <section id="collections" class="collections" aria-label="Колекції"></section>
+  <section id="saved" class="collections" aria-label="Збережені пошуки"></section>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <dialog id="sheet" class="sheet" aria-labelledby="sheet-title">
     <form method="dialog">

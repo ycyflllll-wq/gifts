@@ -16,4 +16,16 @@ function filterGifts(gifts, { mono, fewDigits, query, names, models, backdrops, 
     (!q || g.name.toLowerCase().includes(q) || String(g.id).includes(q)));
 }
 
-if (typeof module !== 'undefined') module.exports = { isFewDigits, filterGifts };
+// Human-readable summary of a filter, e.g. "Колекція: Plush Pepe; Ціна: 0–100".
+function describe(f) {
+  const labels = { names: 'Колекція', models: 'Модель', backdrops: 'Фон', symbols: 'Символ', markets: 'Маркет' };
+  const parts = [];
+  for (const k of Object.keys(labels)) if (f[k]?.length) parts.push(`${labels[k]}: ${f[k].join(', ')}`);
+  if (f.priceMin != null || f.priceMax != null) parts.push(`Ціна: ${f.priceMin ?? 0}–${f.priceMax ?? '∞'}`);
+  if (f.mono) parts.push('Монохромні');
+  if (f.fewDigits) parts.push('≤ 3 цифри');
+  if (f.query?.trim()) parts.push(`Пошук: ${f.query.trim()}`);
+  return parts.join('; ');
+}
+
+if (typeof module !== 'undefined') module.exports = { isFewDigits, filterGifts, describe };

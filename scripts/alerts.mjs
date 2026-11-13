@@ -1,15 +1,17 @@
 // Bot side of alerts: reads commands sent to the bot since the last run, keeps filters in alerts.json,
-// and messages the owner about new listings that match them. Runs inside the collector (every ~10 min).
+// and messages the owner about new listings that match them or the searches saved in the app.
+// Runs inside the collector (every ~10 min).
 import { createRequire } from 'node:module';
 
-const { filterGifts } = createRequire(import.meta.url)('../docs/filters.js');
+const { filterGifts, describe } = createRequire(import.meta.url)('../docs/filters.js');
+export { describe };
 
 const MAX_PER_ALERT = 10; // listings per alert per message, so a broad filter can't flood the chat
 const LISTS = ['names', 'models', 'backdrops', 'symbols', 'markets'];
 const HELP = [
   'Я надсилаю сповіщення про нові подарунки на маркетах.',
   '',
-  'Створити: у застосунку виберіть фільтри → 🔔 → надішліть мені скопійовану команду /alert.',
+  'Створити: у застосунку виберіть фільтри → ⭐ Зберегти пошук. Я писатиму про нові лоти за кожним збереженим пошуком (🔔 біля пошуку вмикає й вимикає сповіщення).',
   '/alerts — мої сповіщення',
   '/stop 3 — видалити сповіщення №3, /stop all — усі',
   '',
@@ -19,7 +21,7 @@ const HELP = [
 const money = g => `${g.price} ${g.currency === 'XTR' ? '⭐' : 'TON'}`;
 const line = g => `${g.name} #${g.id} — ${money(g)}${g.market ? ` (${g.market})` : ''}\n${g.url}`;
 // MRKT listings all share one link, so a listing is told apart by market, collection and number.
-const key = g => `${g.market}|${g.name}|${g.id}`;
+export const key = g => `${g.market}|${g.name}|${g.id}`;
 
 // Listings that are new or got cheaper since the previous run.
 export function freshListings(prev, next) {
@@ -38,15 +40,13 @@ export function cleanFilter(raw) {
   return Object.keys(f).length ? f : null;
 }
 
-export function describe(f) {
-  const parts = [];
-  const names = { names: 'Колекція', models: 'Модель', backdrops: 'Фон', symbols: 'Символ', markets: 'Маркет' };
-  for (const k of LISTS) if (f[k]?.length) parts.push(`${names[k]}: ${f[k].join(', ')}`);
-  if (f.priceMin != null || f.priceMax != null) parts.push(`Ціна: ${f.priceMin ?? 0}–${f.priceMax ?? '∞'}`);
-  if (f.mono) parts.push('Монохромні');
-  if (f.fewDigits) parts.push('≤ 3 цифри');
-  if (f.query) parts.push(`Пошук: ${f.query}`);
-  return parts.join('; ');
+// Searches saved in the app's Telegram CloudStorage (key "searches", a JSON array), as read by the collector.
+// Only the ones with notifications on, with their filters cleaned like chat input.
+export function parseSavedSearches(storageJson) {
+  let list;
+  try { list = JSON.parse(JSON.parse(storageJson).searches ?? '[]'); } catch { return []; }
+  if (!Array.isArray(list)) return [];
+  return list.filter(s => s?.notify !== false).map(s => ({ id: s.id, filter: cleanFilter(s.filter) })).filter(s => s.filter);
 }
 
 // Alerts that existed before this run, about listings that appeared since the previous run.
@@ -55,12 +55,13 @@ export function alertMessages(store, fresh) {
     const hits = filterGifts(fresh, a.filter);
     if (!hits.length) return [];
     const more = hits.length > MAX_PER_ALERT ? `\n…і ще ${hits.length - MAX_PER_ALERT}` : '';
-    return [{ chat: a.chat, text: `🔔 #${a.id} (${describe(a.filter)})\n\n${hits.slice(0, MAX_PER_ALERT).map(line).join('\n\n')}${more}` }];
+    const title = a.saved ? '⭐ Збережений пошук' : `#${a.id}`;
+    return [{ chat: a.chat, saved: a.saved, searchId: a.id, text: `🔔 ${title} (${describe(a.filter)})\n\n${hits.slice(0, MAX_PER_ALERT).map(line).join('\n\n')}${more}` }];
   });
 }
 
 // Applies bot commands to the store and returns replies. No network here, so it is easy to test.
-export function applyCommands(store, updates, gifts) {
+export function applyCommands(store, updates, gifts, searches = []) {
   const replies = [];
   for (const u of updates) {
     store.offset = u.update_id + 1;
@@ -89,8 +90,9 @@ export function applyCommands(store, updates, gifts) {
       const cheapest = now.length ? `\nНайдешевший зараз: ${line(now[0])}` : '';
       replies.push({ chat, text: `✓ Сповіщення #${id}: ${describe(filter)}\nЗараз підходить лотів: ${now.length}.${cheapest}` });
     } else if (cmd === '/alerts') {
-      const mine = store.alerts.filter(a => a.chat === chat);
-      replies.push({ chat, text: mine.length ? mine.map(a => `#${a.id}: ${describe(a.filter)}`).join('\n') : 'Сповіщень немає.' });
+      const mine = store.alerts.filter(a => a.chat === chat).map(a => `#${a.id}: ${describe(a.filter)}`);
+      const saved = searches.map(s => `⭐ ${describe(s.filter)}`);
+      replies.push({ chat, text: [...saved, ...mine].join('\n') || 'Сповіщень немає. Збережіть пошук у застосунку кнопкою ⭐.' });
     } else if (cmd === '/stop') {
       const before = store.alerts.length;
       store.alerts = store.alerts.filter(a => a.chat !== chat || (arg !== 'all' && String(a.id) !== arg));
@@ -102,7 +104,8 @@ export function applyCommands(store, updates, gifts) {
   return replies;
 }
 
-export async function runAlerts({ token, store, prev, next }) {
+// searches: the owner's saved searches (parseSavedSearches); siteUrl: the app, for an "Open" button.
+export async function runAlerts({ token, store, prev, next, searches = [], siteUrl }) {
   const api = async (method, body) => {
     const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
       method: 'POST',
@@ -115,12 +118,18 @@ export async function runAlerts({ token, store, prev, next }) {
   };
   const me = await api('getMe', {});
   // Notify existing alerts first, so a brand-new alert doesn't get everything that's on sale right now.
-  const replies = alertMessages(store, freshListings(prev, next));
+  // Saved searches belong to the owner (the collector reads them from the owner's own account).
+  const savedAlerts = store.owner ? searches.map(s => ({ ...s, chat: store.owner, saved: true })) : [];
+  const replies = alertMessages({ alerts: [...store.alerts, ...savedAlerts] }, freshListings(prev, next));
   const updates = await api('getUpdates', { offset: store.offset, timeout: 0, allowed_updates: ['message'] });
-  replies.push(...applyCommands(store, updates, next));
+  replies.push(...applyCommands(store, updates, next, searches));
   for (const r of replies) {
+    // A saved search's message opens the app on that search.
+    const markup = r.saved && siteUrl
+      ? { inline_keyboard: [[{ text: '🔎 Відкрити в Gift Seeker', web_app: { url: `${siteUrl}?search=${encodeURIComponent(r.searchId)}` } }]] }
+      : undefined;
     // One failed message (e.g. the chat blocked the bot) must not lose the saved alerts and offset.
-    await api('sendMessage', { chat_id: r.chat, text: r.text, link_preview_options: { is_disabled: true } })
+    await api('sendMessage', { chat_id: r.chat, text: r.text, link_preview_options: { is_disabled: true }, reply_markup: markup })
       .catch(e => console.error(e.message));
   }
   return me.username;

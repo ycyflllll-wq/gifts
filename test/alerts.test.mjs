@@ -60,3 +60,23 @@ test('alertMessages notifies only matching fresh listings', () => {
   assert.strictEqual(m.chat, OWNER);
   assert.match(m.text, /🔔 #3 \(Колекція: Lol Pop\)\n\nLol Pop #3133 — 4.5 TON\nhttps:\/\/t.me\/nft\/LolPop-3133/);
 });
+
+test('parseSavedSearches reads CloudStorage and keeps searches with alerts on', async () => {
+  const { parseSavedSearches } = await import('../scripts/alerts.mjs');
+  const stored = JSON.stringify([
+    { id: 'a', filter: { names: ['Lol Pop'], evil: 1 }, viewedAt: 1, notify: true },
+    { id: 'b', filter: { names: ['Toy Bear'] }, notify: false },
+    { id: 'c', filter: {} },
+  ]);
+  assert.deepStrictEqual(parseSavedSearches(JSON.stringify({ searches: stored })), [{ id: 'a', filter: { names: ['Lol Pop'] } }]);
+  assert.deepStrictEqual(parseSavedSearches(JSON.stringify({})), []);
+  assert.deepStrictEqual(parseSavedSearches('not json'), []);
+  assert.deepStrictEqual(parseSavedSearches(JSON.stringify({ searches: '{"x":1}' })), []);
+});
+
+test('saved searches alert the owner with their own title', () => {
+  const [m] = alertMessages({ alerts: [{ id: 'a', chat: OWNER, saved: true, filter: { names: ['Lol Pop'] } }] }, gifts);
+  assert.strictEqual(m.searchId, 'a');
+  assert.ok(m.saved);
+  assert.match(m.text, /^🔔 ⭐ Збережений пошук \(Колекція: Lol Pop\)/);
+});
