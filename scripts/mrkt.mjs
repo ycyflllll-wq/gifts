@@ -12,8 +12,9 @@ const SEARCH = {
   collectionNames: [], modelNames: [], backdropNames: [], symbolNames: [], ordering: 'Price', lowToHigh: true,
   maxPrice: null, minPrice: null, mintable: null, number: null, count: 20, cursor: '', query: null, promotedFirst: false,
 };
-// No per-gift link format is published, so "Buy" opens MRKT itself.
+// MRKT's own "Share" links open a listing as startapp=<its id without dashes>; MRKT_URL alone opens the market.
 export const MRKT_URL = 'https://t.me/mrkt/app';
+export const mrktGiftUrl = id => id ? `${MRKT_URL}?startapp=${id.replace(/-/g, '')}` : MRKT_URL;
 
 const hex = n => '#' + (n & 0xffffff).toString(16).padStart(6, '0');
 const perMille = n => n == null ? undefined : `${n / 10}%`;
@@ -62,6 +63,6 @@ export function mrktToGift(m) {
     is_monochrome: false,
     market: 'MRKT',
     image: `https://nft.fragment.com/gift/${m.name.toLowerCase()}.webp`,
-    url: MRKT_URL,
+    url: mrktGiftUrl(m.id),
   };
 }

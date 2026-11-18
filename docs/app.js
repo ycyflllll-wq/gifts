@@ -268,7 +268,7 @@ function showGift(g) {
     </dl>
     <a class="buy primary" href="${esc(g.url)}" target="_blank" rel="noopener">Купити за ${price(g)}</a>
     <p class="hint">${g.market === 'MRKT'
-      ? `Відкриється MRKT — знайдіть там ${esc(g.name)} #${esc(g.id)}. Покупку ви підтверджуєте самі.`
+      ? `Відкриється цей лот у MRKT — покупку ви підтверджуєте самі.`
       : 'Покупка відкриється в Telegram — ви підтверджуєте її самі.'}</p>`;
   showDialog($('#gift'));
 }
