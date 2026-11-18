@@ -177,7 +177,10 @@ async function main() {
         want = PER_SEARCH;
       }
       calls += Math.ceil(want / 100);
-      (await resale(call, params, want)).gifts.forEach(g => add(fromTelegram(g)));
+      const { gifts, count } = await resale(call, params, want);
+      const was = items.length;
+      gifts.forEach(g => add(fromTelegram(g)));
+      console.log(`  ${title}: ${gifts.length} of ${count} on sale, ${items.length - was} new`);
     }
   }
   console.log(`Saved searches, whole Telegram market: ${items.length - before} more gifts (${calls} calls)`);
