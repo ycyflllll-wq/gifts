@@ -37,3 +37,31 @@ test('stampSeen: first-seen times, a cold start is not "new", sold listings are 
   assert.deepStrictEqual([a.seen, c.seen], [0, 200]);
   assert.deepStrictEqual(Object.keys(warm), ['Telegram|Lol Pop|1', 'Telegram|Lol Pop|3']);
 });
+
+test('attributeIds turns a saved filter into Telegram attribute ids for one collection', async () => {
+  const { attributeIds } = await import('../scripts/collect.mjs');
+  const attrs = [
+    { _: 'starGiftAttributeModel', name: 'Mandarin', document: { id: 11n } },
+    { _: 'starGiftAttributeModel', name: 'Lemon', document: { id: 12n } },
+    { _: 'starGiftAttributePattern', name: 'Kudu Totem', document: { id: 21n } },
+    { _: 'starGiftAttributeBackdrop', name: 'Onyx Black', backdropId: 7 },
+  ];
+  assert.deepStrictEqual(attributeIds(attrs, { models: ['Mandarin', 'Not Here'], backdrops: ['Onyx Black'] }), [
+    { _: 'starGiftAttributeIdModel', documentId: 11n },
+    { _: 'starGiftAttributeIdBackdrop', backdropId: 7 },
+  ]);
+  assert.deepStrictEqual(attributeIds(attrs, { names: ['Lol Pop'] }), []); // nothing to filter by
+  assert.strictEqual(attributeIds(attrs, { symbols: ['Owl'] }), null); // that symbol isn't in this collection
+});
+
+test('resale pages through next_offset up to the wanted count', async () => {
+  const { resale } = await import('../scripts/collect.mjs');
+  const listing = n => ({ _: 'starGiftUnique', num: n, resellAmount: [{}] });
+  const pages = { '': { gifts: [listing(1), listing(2)], nextOffset: 'b', count: 9, attributes: ['a'] }, b: { gifts: [listing(3), { _: 'starGiftUnique', num: 4 }], nextOffset: 'c', count: 9 }, c: { gifts: [listing(5)], count: 9 } };
+  const asked = [];
+  const call = async req => { asked.push([req.offset, req.limit]); return pages[req.offset]; };
+  const { gifts, count, attributes } = await resale(call, { giftId: 1 }, 4);
+  assert.deepStrictEqual(gifts.map(g => g.num), [1, 2, 3, 5]); // #4 isn't for sale (no price) and is skipped
+  assert.deepStrictEqual(asked, [['', 4], ['b', 2], ['c', 1]]);
+  assert.deepStrictEqual([count, attributes], [9, ['a']]);
+});

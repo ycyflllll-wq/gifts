@@ -1,15 +1,21 @@
 // Collects collectible gifts for sale on Telegram's own market and on MRKT into docs/gifts.json,
 // then lets the bot handle alert commands and notify about new matching listings (scripts/alerts.mjs).
 // Run: node --env-file=.env scripts/collect.mjs  (GitHub Actions passes the same vars as secrets)
-import { TelegramClient, MemoryStorage } from '@mtcute/node';
+import { Long, MemoryStorage, TelegramClient } from '@mtcute/node';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { key, parseSavedSearches, runAlerts } from './alerts.mjs';
 import { fetchIsMonochrome } from './mono.mjs';
-import { mrktListings, mrktLogin, mrktToGift } from './mrkt.mjs';
+import { mrktLogin, mrktQuery, mrktSearch, mrktToGift } from './mrkt.mjs';
 
-// shortcut: only the cheapest listings per collection, so the page stays light; add paging when more is needed.
-const PER_COLLECTION = 50;
+// shortcut: only the cheapest listings per collection (the market has ~800k), so the page stays light enough
+// for a phone; saved searches additionally look through the whole market (see below).
+const PER_COLLECTION = 100; // Telegram
+const MRKT_PAGES = 2; // × 20 = 40 per collection on MRKT
+const PER_SEARCH = 100; // cheapest whole-market matches per saved search (per collection on Telegram)
+// shortcut: whole-market searches cost about two Telegram calls per collection, and a search naming no collection
+// spans all ~120; past this many calls per run the rest waits for the next run.
+const MAX_SEARCH_CALLS = 200;
 // Monochrome checks (one small picture per gift) are cached in mono-cache.json; new ones get at most this long
 // per run, so a cold cache fills over a couple of runs and those gifts aren't marked monochrome meanwhile.
 const MONO_BUDGET_MS = 4 * 60_000;
@@ -34,6 +40,31 @@ export function stampSeen(gifts, seen, now) {
   const next = {};
   for (const g of gifts) g.seen = next[key(g)] = seen[key(g)] ?? (cold ? 0 : now);
   return next;
+}
+
+// A saved search's models/symbols/backdrops as Telegram's attribute ids for one collection, given that collection's
+// attribute list. [] = nothing to filter by; null = it names some that don't exist here, so nothing can match.
+export function attributeIds(attributes, f) {
+  const find = (type, names, toId) => names?.length ? attributes.filter(a => a._ === type && names.includes(a.name)).map(toId) : [];
+  const models = find('starGiftAttributeModel', f.models, a => ({ _: 'starGiftAttributeIdModel', documentId: a.document.id }));
+  const symbols = find('starGiftAttributePattern', f.symbols, a => ({ _: 'starGiftAttributeIdPattern', documentId: a.document.id }));
+  const backdrops = find('starGiftAttributeBackdrop', f.backdrops, a => ({ _: 'starGiftAttributeIdBackdrop', backdropId: a.backdropId }));
+  if ((f.models?.length && !models.length) || (f.symbols?.length && !symbols.length) || (f.backdrops?.length && !backdrops.length)) return null;
+  return [...models, ...symbols, ...backdrops];
+}
+
+// Up to `want` gifts for sale, cheapest first, following next_offset; count/attributes come from the first page.
+export async function resale(call, params, want) {
+  const gifts = [];
+  let offset = '';
+  let res, first;
+  do {
+    res = await call({ _: 'payments.getResaleStarGifts', sortByPrice: true, ...params, offset, limit: Math.min(100, want - gifts.length) });
+    first ??= res;
+    gifts.push(...res.gifts.filter(g => g._ === 'starGiftUnique' && g.resellAmount?.length));
+    offset = res.nextOffset;
+  } while (offset && res.gifts.length && gifts.length < want);
+  return { gifts, count: first.count, attributes: first.attributes };
 }
 
 // isMono: result of the picture check in scripts/mono.mjs, if it has been done.
@@ -82,35 +113,6 @@ async function main() {
   };
   await client.start({ session: process.env.TG_SESSION });
 
-  const { gifts: bases } = await call({ _: 'payments.getStarGifts', hash: 0 });
-  const onResale = bases.filter(b => b._ === 'starGift' && Number(String(b.availabilityResale ?? 0)) > 0);
-
-  // Each listing with what the monochrome check needs: the gift's slug and its backdrop colours.
-  const items = [];
-  const counts = {};
-  for (const base of onResale) {
-    const res = await call({ _: 'payments.getResaleStarGifts', giftId: base.id, sortByPrice: true, offset: '', limit: PER_COLLECTION });
-    const listed = res.gifts.filter(g => g._ === 'starGiftUnique' && g.resellAmount?.length);
-    if (listed.length) counts[listed[0].title] = res.count;
-    for (const g of listed) items.push({ gift: toGift(g), slug: g.slug, center: backdropOf(g)?.centerColor, edge: backdropOf(g)?.edgeColor });
-  }
-  if (!items.length) throw new Error('No gifts collected — keeping the previous gifts.json');
-
-  // MRKT is a bonus: if it is down or changed its API, the Telegram listings still get published.
-  try {
-    const token = await mrktLogin(client, call);
-    let found = 0;
-    for (const collection of Object.keys(counts)) {
-      for (const m of await mrktListings(token, collection)) {
-        items.push({ gift: mrktToGift(m), slug: m.name, center: m.backdropColorsCenterColor, edge: m.backdropColorsEdgeColor });
-        found++;
-      }
-    }
-    console.log(`MRKT: ${found} gifts`);
-  } catch (e) {
-    console.error(`MRKT skipped: ${e.message}`);
-  }
-
   // The owner's saved searches live in our bot's CloudStorage, readable from the owner's own account.
   let searches = [];
   if (process.env.TG_BOT_TOKEN) {
@@ -126,6 +128,63 @@ async function main() {
     } catch (e) {
       console.error(`Saved searches skipped: ${e.message}`);
     }
+  }
+  const onMarket = (s, market) => !s.filter.markets?.length || s.filter.markets.includes(market);
+
+  const { gifts: bases } = await call({ _: 'payments.getStarGifts', hash: 0 });
+  const onResale = bases.filter(b => b._ === 'starGift' && Number(String(b.availabilityResale ?? 0)) > 0);
+
+  // Each listing with what the monochrome check needs: the gift's slug and its backdrop colours.
+  // A listing can turn up both among the cheapest and in a saved search, so it is added once.
+  const items = [];
+  const have = new Set();
+  const add = item => { if (!have.has(key(item.gift))) { have.add(key(item.gift)); items.push(item); } };
+  const fromTelegram = g => ({ gift: toGift(g), slug: g.slug, center: backdropOf(g)?.centerColor, edge: backdropOf(g)?.edgeColor });
+  const fromMrkt = m => ({ gift: mrktToGift(m), slug: m.name, center: m.backdropColorsCenterColor, edge: m.backdropColorsEdgeColor });
+
+  const counts = {};
+  const giftIds = {}; // collection title → its base gift id, for the whole-market searches
+  for (const base of onResale) {
+    const { gifts, count } = await resale(call, { giftId: base.id }, PER_COLLECTION);
+    if (!gifts.length) continue;
+    counts[gifts[0].title] = count;
+    giftIds[gifts[0].title] = base.id;
+    gifts.forEach(g => add(fromTelegram(g)));
+  }
+  if (!items.length) throw new Error('No gifts collected — keeping the previous gifts.json');
+
+  // Saved searches look through the whole Telegram market: it filters by model/symbol/backdrop itself.
+  // A search naming none of those gains nothing over the cheapest listings above, so it is skipped.
+  let calls = 0;
+  const attributes = new Map();
+  const before = items.length;
+  for (const s of searches.filter(s => onMarket(s, 'Telegram') && (s.filter.models?.length || s.filter.symbols?.length || s.filter.backdrops?.length))) {
+    for (const title of s.filter.names?.length ? s.filter.names : Object.keys(giftIds)) {
+      if (!giftIds[title] || calls >= MAX_SEARCH_CALLS) continue;
+      if (!attributes.has(title)) {
+        attributes.set(title, (await resale(call, { giftId: giftIds[title], attributesHash: Long.ZERO }, 1)).attributes ?? []);
+        calls++;
+      }
+      const ids = attributeIds(attributes.get(title), s.filter);
+      if (!ids?.length) continue;
+      (await resale(call, { giftId: giftIds[title], attributes: ids }, PER_SEARCH)).gifts.forEach(g => add(fromTelegram(g)));
+      calls++;
+    }
+  }
+  console.log(`Saved searches, whole Telegram market: ${items.length - before} more gifts (${calls} calls)`);
+
+  // MRKT is a bonus: if it is down or changed its API, the Telegram listings still get published.
+  try {
+    const token = await mrktLogin(client, call);
+    const start = items.length;
+    for (const collection of Object.keys(counts)) (await mrktSearch(token, { collectionNames: [collection] }, MRKT_PAGES)).forEach(m => add(fromMrkt(m)));
+    for (const s of searches.filter(s => onMarket(s, 'MRKT'))) {
+      const query = mrktQuery(s.filter);
+      if (query) (await mrktSearch(token, query, PER_SEARCH / 20)).forEach(m => add(fromMrkt(m)));
+    }
+    console.log(`MRKT: ${items.length - start} gifts`);
+  } catch (e) {
+    console.error(`MRKT skipped: ${e.message}`);
   }
   await client.destroy();
 

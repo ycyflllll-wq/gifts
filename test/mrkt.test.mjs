@@ -24,3 +24,11 @@ test('mrktToGift maps an MRKT listing (shape as returned by /gifts/saling)', () 
     url: 'https://t.me/mrkt/app?startapp=12872f10efd24c668592ac7691f3bf55',
   });
 });
+
+test('mrktQuery: a saved filter as MRKT filters, or null when it names nothing MRKT filters by', async () => {
+  const { mrktQuery } = await import('../scripts/mrkt.mjs');
+  assert.deepStrictEqual(mrktQuery({ names: ['Plush Pepe'], backdrops: ['Black'], priceMax: 1.5 }), {
+    collectionNames: ['Plush Pepe'], modelNames: [], backdropNames: ['Black'], symbolNames: [], minPrice: null, maxPrice: 1500000000,
+  });
+  assert.strictEqual(mrktQuery({ mono: true, priceMax: 5 }), null);
+});
