@@ -19,14 +19,17 @@
         <button role="tab" data-view="collections" aria-selected="false">Колекції</button>
         <button role="tab" data-view="saved" aria-selected="false">Збережені <span id="saved-badge" class="tab-badge" hidden></span></button>
       </div>
-      <span id="count" class="count gifts-only" aria-live="polite"></span>
+      <span class="count-row gifts-only">
+        <span id="count" class="count" aria-live="polite"></span>
+        <!-- Kept out of the filter row: appearing there it shifted the chips under the finger and got tapped by mistake. -->
+        <button class="save-btn" id="save" hidden>⭐ Зберегти пошук</button>
+      </span>
     </div>
     <label class="search gifts-only">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input id="search" type="search" placeholder="Пошук за назвою або #номером" aria-label="Пошук за назвою або номером">
     </label>
     <div class="chips gifts-only" role="toolbar" aria-label="Фільтри">
-      <button class="chip save-chip" id="save" hidden>⭐ Зберегти пошук</button>
       <button class="chip" id="sort" aria-label="Сортування">↑ Дешевші</button>
       <button class="chip" data-filter="mono" aria-pressed="false" title="Подарунок того ж кольору, що й фон">Монохромні</button>
       <button class="chip" data-filter="fewDigits" aria-pressed="false" title="У номері не більше 3 різних цифр, напр. #7777, #1231">≤ 3 цифри</button>

@@ -69,7 +69,10 @@ body:not([data-view="saved"]) #saved { display: none; }
 .chip.on, .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
 .chip.on::after { color: inherit; }
 .chip.reset { background: none; color: var(--accent); }
-.chip.save-chip { background: var(--card-2); color: var(--accent); font-weight: 600; }
+.count-row { display: flex; align-items: center; gap: 10px; }
+.save-btn { padding: 6px 12px; border: 0; border-radius: 999px; background: var(--card-2); color: var(--accent); font-weight: 600; cursor: pointer; }
+/* Hidden but still taking its space, so showing it never moves the filters under the finger. */
+.save-btn[hidden] { display: inline-block; visibility: hidden; }
 
 /* Grid of cards */
 .grid {
