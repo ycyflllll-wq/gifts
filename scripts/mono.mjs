@@ -52,7 +52,8 @@ export function isMonochromeImage(image, centerColor, edgeColor) {
 }
 
 export async function fetchIsMonochrome(slug, centerColor, edgeColor) {
-  const res = await fetch(`https://nft.fragment.com/gift/${slug.toLowerCase()}.small.jpg`);
+  // A stuck download must not eat the whole time budget for the check.
+  const res = await fetch(`https://nft.fragment.com/gift/${slug.toLowerCase()}.small.jpg`, { signal: AbortSignal.timeout(15_000) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return isMonochromeImage(jpeg.decode(Buffer.from(await res.arrayBuffer()), { useTArray: true }), centerColor, edgeColor);
 }

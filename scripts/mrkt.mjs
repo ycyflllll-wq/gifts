@@ -30,7 +30,7 @@ export async function mrktLogin(client, call) {
     platform: 'android',
   });
   const initData = new URLSearchParams(new URL(view.url).hash.slice(1)).get('tgWebAppData');
-  const res = await fetch(`${API}/auth`, { method: 'POST', headers: HEADERS, body: JSON.stringify({ data: initData }) });
+  const res = await fetch(`${API}/auth`, { method: 'POST', headers: HEADERS, body: JSON.stringify({ data: initData }), signal: AbortSignal.timeout(30_000) });
   if (!res.ok) throw new Error(`MRKT login: HTTP ${res.status}`);
   const { token } = await res.json();
   if (!token) throw new Error('MRKT login: no token');
@@ -46,7 +46,7 @@ export async function mrktSearch(token, query, pages = 2) {
   for (let page = 0; page < pages; page++) {
     let res;
     for (let attempt = 0; ; attempt++) {
-      res = await fetch(`${API}/gifts/saling`, { method: 'POST', headers, body: JSON.stringify({ ...SEARCH, ...query, cursor }) });
+      res = await fetch(`${API}/gifts/saling`, { method: 'POST', headers, body: JSON.stringify({ ...SEARCH, ...query, cursor }), signal: AbortSignal.timeout(30_000) });
       if (res.status === 429 && attempt < 3) { await sleep(5000 * (attempt + 1)); continue; } // rate limited: back off
       break;
     }

@@ -13,6 +13,7 @@ import { mrktLogin, mrktQuery, mrktSearch, mrktToGift } from './mrkt.mjs';
 const PER_COLLECTION = 100; // Telegram
 const MRKT_PAGES = 2; // × 20 = 40 per collection on MRKT
 const PER_SEARCH = 100; // cheapest whole-market matches per saved search (per collection on Telegram)
+const DEEP_COLLECTION = 300; // a saved search naming only collections gets this many of each, not just 100
 // shortcut: whole-market searches cost about two Telegram calls per collection, and a search naming no collection
 // spans all ~120; past this many calls per run the rest waits for the next run.
 const MAX_SEARCH_CALLS = 200;
@@ -154,21 +155,29 @@ async function main() {
   if (!items.length) throw new Error('No gifts collected — keeping the previous gifts.json');
 
   // Saved searches look through the whole Telegram market: it filters by model/symbol/backdrop itself.
-  // A search naming none of those gains nothing over the cheapest listings above, so it is skipped.
+  // A search naming only collections goes deeper into them instead; one with only price/monochrome/digits
+  // can't be searched market-wide and stays with the cheapest listings above.
   let calls = 0;
   const attributes = new Map();
   const before = items.length;
-  for (const s of searches.filter(s => onMarket(s, 'Telegram') && (s.filter.models?.length || s.filter.symbols?.length || s.filter.backdrops?.length))) {
+  for (const s of searches.filter(s => onMarket(s, 'Telegram'))) {
+    const byAttribute = s.filter.models?.length || s.filter.symbols?.length || s.filter.backdrops?.length;
+    if (!byAttribute && !s.filter.names?.length) continue;
     for (const title of s.filter.names?.length ? s.filter.names : Object.keys(giftIds)) {
       if (!giftIds[title] || calls >= MAX_SEARCH_CALLS) continue;
-      if (!attributes.has(title)) {
-        attributes.set(title, (await resale(call, { giftId: giftIds[title], attributesHash: Long.ZERO }, 1)).attributes ?? []);
-        calls++;
+      const params = { giftId: giftIds[title] };
+      let want = DEEP_COLLECTION;
+      if (byAttribute) {
+        if (!attributes.has(title)) {
+          attributes.set(title, (await resale(call, { giftId: giftIds[title], attributesHash: Long.ZERO }, 1)).attributes ?? []);
+          calls++;
+        }
+        params.attributes = attributeIds(attributes.get(title), s.filter);
+        if (!params.attributes) continue; // it names a model/symbol/backdrop this collection doesn't have
+        want = PER_SEARCH;
       }
-      const ids = attributeIds(attributes.get(title), s.filter);
-      if (!ids?.length) continue;
-      (await resale(call, { giftId: giftIds[title], attributes: ids }, PER_SEARCH)).gifts.forEach(g => add(fromTelegram(g)));
-      calls++;
+      calls += Math.ceil(want / 100);
+      (await resale(call, params, want)).gifts.forEach(g => add(fromTelegram(g)));
     }
   }
   console.log(`Saved searches, whole Telegram market: ${items.length - before} more gifts (${calls} calls)`);
